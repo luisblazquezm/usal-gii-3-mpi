@@ -23,7 +23,11 @@ Proceso_Calculador {
         Si (Mensaje = Repartir calculo) {
             nuevos_parametros <- Extraer_parametros(mensaje)
         } Si No, Si (Mensaje = Clave encontrada) {
-            
+            Continue // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Cambiar  si hay que
+                     //                                     sumar los  intentos
+                     //                                     de todos los proce_
+                     //                                     sos  calculando  la
+                     //                                     misma clave.
         }
     }
     
