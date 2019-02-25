@@ -1,0 +1,34 @@
+NECESARIO SCHEDULING
+
+Proceso_Calculador {
+
+    Mientras (No se indique lo contrario) {
+    
+        Esperar(clave)
+        
+        Mientras (no haya mensaje) {
+        
+            clave, n_intentos <- Buscar_clave_fuerza_bruta()
+            
+            Si (clave OK) {
+                Notificar(clave, n_intentos)
+                flag_nueva_clave <- True
+            }
+                
+        }
+        
+        Si (flag_nueva_clave)
+            Continue
+        
+        Si (Mensaje = Repartir calculo) {
+            nuevos_parametros <- Extraer_parametros(mensaje)
+        } Si No, Si (Mensaje = Clave encontrada) {
+            
+        }
+    }
+    
+}
+
+Proceso_Entrada_Salida {
+    ???
+}
