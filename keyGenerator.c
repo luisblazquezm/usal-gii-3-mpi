@@ -5,9 +5,8 @@
 #define MIN 00000000
 #define MAX 100000000
 
-int main(int argc, char **argv){
+int main(int argc, char *argv[]){
 	int numberOfKeys;
-	double key[numberOfKeys+1];
 	int i;
 
 	if(argv[1] == NULL){
@@ -16,6 +15,8 @@ int main(int argc, char **argv){
 		numberOfKeys = atoi(argv[1]);
 	}
 
+	double key[numberOfKeys];
+	
 	srand(time(NULL));
 
 	for(i = 0; i < numberOfKeys; i++){
