@@ -17,11 +17,11 @@
 #define KILL_MESSAGE 				  6
 
 
-typedef unsigned long Key_type;
+typedef unsigned long Key_number_type;
 
 typedef struct {
 	int message_id;
-	struct Key;
+	Key_type key;
 	int process_id;
 	unsigned long num_tries;
 	double time;
@@ -30,18 +30,18 @@ typedef struct {
 typedef struct {
 	int key_id;
 	char* key;
-} Key;
+} Key_type;
 
 typedef struct {
 	int message_id;
-	struct Key;
-	struct Calculation_range;
+	Key_type key;
+	Calculation_range_type Calculation_range;
 } Message_decrypt_type;
 
 typedef struct {
 	unsigned long min_value;
 	unsigned long max_value;
-} Calculation_range;
+} Calculation_range_type;
 
 typedef struct {
 	int message_id;
@@ -55,12 +55,12 @@ typedef struct {
 	int key_id;
 	unsigned long key;
 	int process[];
-	struct Stadistics;
-} Key_table;
+	Statistics_type Stadistics;
+} Key_table_type;
 
 typedef struct {
-	
-} Stadistics;
+	/* This is for Samuel to fill */
+} Statistics_type;
 
 /* Process tasks functions */
 int calculator_process(int process_id);
