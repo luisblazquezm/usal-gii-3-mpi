@@ -67,7 +67,7 @@ typedef struct key_table_row* key_table_t;
 
 /* Process tasks functions */
 int calculator_process(int process_id);
-int IO_process(char *argv[]); 
+int IO_process(char *argv[], int num_proc) ;
 
 /* Other functions. They could be included in a utils.h */
 int construct_key_type(int num_keys, key_t* data);
@@ -83,5 +83,6 @@ int key_decrypter(key_t key);
 /* TABLE HANDLE FUNCTIONS */
 void initialice_table_of_keys(key_table_t *k_table, proc_table_t *p_table, int num_proc, int num_keys); 
 int search_keys_not_assigned(key_table_t k_table, int num_keys);
+int search_keys_not_decrypted(key_table_t k_table, int num_keys);
 
 
