@@ -20,12 +20,47 @@
 typedef unsigned long Key_type;
 
 typedef struct {
-	char* key;
-	int length;
+	int message_id;
+	struct Key;
 	int process_id;
 	unsigned long num_tries;
 	double time;
-} Message_type;
+} Message_data_type;
+
+typedef struct {
+	int key_id;
+	char* key;
+} Key;
+
+typedef struct {
+	int message_id;
+	struct Key;
+	struct Calculation_range;
+} Message_decrypt_type;
+
+typedef struct {
+	unsigned long min_value;
+	unsigned long max_value;
+} Calculation_range;
+
+typedef struct {
+	int message_id;
+} Message_request_data_type;
+
+typedef struct {
+	int message_id;
+} Message_finish_execution_type;
+
+typedef struct {
+	int key_id;
+	unsigned long key;
+	int process[];
+	struct Stadistics;
+} Key_table;
+
+typedef struct {
+	
+} Stadistics;
 
 /* Process tasks functions */
 int calculator_process(int process_id);
