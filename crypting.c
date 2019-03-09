@@ -57,44 +57,74 @@ int calculator_process(int process_id)
 {
 	int source = IO_PROCESS_ID;
 	int message_id = process_id;
-	int message_received_flag = 0;
-    int new_key_flag = 0;
+    int key_found = 0;
+    int flag_probe = 0;
+    int key_available = 0;
+    int finish_execution = 0;
 
 	Message_type message;
-	Key_type dec_key;
+	Key_number_type dec_key;
 	int num_tries = 0;
 
 	MPI_Status status;
+	MPI_Request request;
 
-	while(1)
-	{
-		/* Waiting to receive the key from IO proccess */
-		if (-1 == MPI_Recv(message , 1, pMPI_Message_type, source, /* Type of message to receive */, MPI_COMM_WORLD, &status) ) {
+	//Create pMPI_Message_type
+	do{
+		if (-1 == MPI_Recv(message , 1, pMPI_Message_type, source, DECRYPT_MESSAGE, MPI_COMM_WORLD, &status) ) {
 			fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_Recv");
 			return -1;
 		}
+		do{
+			num_tries = key_decrypter(message.key, &dec_key, message.length, &key_found);
 
-		while(!message_received_flag) { // We check it with MPI_lprobe
-
-			message.key = key_decrypter(message.key, &dec_key, message.length);
-
-			if (0 < num_tries) {
-				// Notify
-				new_key_flag = 1;
+			if(key_found == 1){
+				if (-1 == MPI_Send(message , 1, pMPI_Message_type, source,DATA_MESSAGE, MPI_COMM_WORLD) ) {
+					fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_Recv");
+					return -1;
+				}
+				key_available = 1;
+				break;
 			}
 
-			/* Check if there is any message */
-			if (-1 == MPI_lprobe(source, /* Type of message to receive */, MPI_COMM_WORLD, &message_received_flag, &status)) {
-				fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_lprobe");
+			if (-1 == MPI_IRecv(message , 1, pMPI_Message_type, source, MPI_ANY_TAG, MPI_COMM_WORLD, &request) ) {
+				fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_Recv");
 				return -1;
 			}
-		}
 
-		if (new_key_flag)
-			continue;
+			if (-1 ==  MPI_Iprobe(source, MPI_ANY_TAG, MPI_COMM_WORLD, &flag_probe, &status)) {
+				fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_Iprobe");
+				return -1;
+			}
 
+			if(flag_probe != 0){
+				switch(MPI_ANY_TAG){
+					case DECRYPT_MESSAGE:
+						if (-1 == MPI_Recv(message , 1, pMPI_Message_type, source, DECRYPT_MESSAGE, MPI_COMM_WORLD, &status) ) {
+							fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_Recv");
+							return -1;
+						}
+					;
 
-	}
+					case REQUEST_DATA_MESSAGE:
+						num_tries = key_decrypter(message.key, &dec_key, message.length, &key_found);
+
+						if(key_found == 1){
+							if (-1 == MPI_Send(message , 1, pMPI_Message_type, source,DATA_MESSAGE, MPI_COMM_WORLD) ) {
+								fprintf(stderr, "%s\n", "calculator_process: ERROR in MPI_Recv");
+								return -1;
+							}
+						}
+						key_available = 1;
+					break;
+
+					case FINISH_EXECUTION_MESSAGE:
+						finish_execution = 1;
+					break;
+				}
+			}
+		}while(key_available == 0);
+	}while(finish_execution == 0);
 }
 
 /*************************************************
@@ -239,7 +269,7 @@ char *key_encrypter(Key_type key)
 }
 
 /* INDICATION --> Returns the number of tries */
-unsigned long long key_decrypter(char *encrypted_key, Key_type *decrypted_key, int key_length)
+unsigned long long key_decrypter(char *encrypted_key, Key_number_type *decrypted_key, int key_length, int *key_found)
 {
 	unsigned long long num_tries;
 	char decrypt_string[key_length];
@@ -257,5 +287,6 @@ unsigned long long key_decrypter(char *encrypted_key, Key_type *decrypted_key, i
 
 	*decrypted_key = strtoul(decrypt_string, NULL, 10);
 
+	*key_found = 1;
 	return num_tries;
 }

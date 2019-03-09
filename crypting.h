@@ -20,6 +20,7 @@ typedef struct {
 	int message_id;
 	Key_type key;
 	int process_id;
+	int length;
 	unsigned long num_tries;
 	double time;
 } Message_data_type;
@@ -67,4 +68,4 @@ int IO_process(char *argv[]);
 int construct_message_type(int numberOfKeys, Message_type* pdata, MPI_Datatype* pMPI_Message_type);
 void key_generator(int numberOfKeys, unsigned long *key);
 char *key_encrypter(unsigned long key); 
-unsigned long long key_decrypter(char *encrypted_key, Key_number_type *decrypted_key, int key_length);
+unsigned long long key_decrypter(char *encrypted_key, Key_number_type *decrypted_key, int key_length, int *key_found);
