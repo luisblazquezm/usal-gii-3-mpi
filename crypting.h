@@ -9,13 +9,10 @@
 #define IO_PROCESS_ID 0
 #define KEY_LENGTH 9
 
-#define EXCLUSIVE_DECRYPT_MESSAGE     1
-#define NON_EXCLUSIVE_DECRYPT_MESSAGE 2
-#define HELP_MESSAGE 				  3
-#define KEY_FOUND_MESSAGE 			  4
-#define KEY_FOUND_BY_MESSAGE		  5
-#define KILL_MESSAGE 				  6
-
+#define DECRYPT_MESSAGE     		  1
+#define DATA_MESSAGE                  2
+#define REQUEST_DATA_MESSAGE 		  3
+#define FINISH_EXECUTION_MESSAGE 	  4
 
 typedef unsigned long Key_number_type;
 
