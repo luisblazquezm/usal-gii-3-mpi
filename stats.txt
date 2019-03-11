@@ -1,0 +1,8 @@
+Lista de claves
+Claves en tiempo real
+Claves por proceso
+Llamadas a rand y crypt
+Intentos acumulados
+Segundos medios por clave
+Número de procesos
+Tiempo e ejecución
