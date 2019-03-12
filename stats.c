@@ -6,87 +6,50 @@
 // Standard terminal VT100 is 80 x 25
 #define TERM_WIDTH  79
 #define TERM_HEIGHT 20
-#define ITEMS_PER_PAGE 20
+#define ITEMS_PER_PAGE 10
 
+int print_table(char **colname, char **item, int nrows, int ncols);
 int print_cipher_key(int founder, key_type *key, int numitems);
 char* my_itoa(int i);
+int format_table(char **colname,   // Column headings
+                 char **item,     // Table content
+                 int nrows,        // Number of rows
+                 int ncols,        // Number of columns
+                 char *heading,    // Buffer for heading string
+                 char *row_format, // Buffer for row format
+                 int max_width,    // 'heading''s size
+                 int format_size);
 
 int main(void)
 {
-    key_type keys[72] = {"Da9sd8h7HBpoS", "2374988", 0,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 2,
-                         "6gFBDF8dfbdff", "9840947", 4,
-                         "nf12daOHfpdf6", "1058401", 1,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 2,
-                         "89jf4ln89LJk0", "6516808", 3,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 4,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "nf12daOHfpdf6", "9032941", 3,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 4,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 3,
-                         "Da9sd8h7HBpoS", "2374988", 2,
-                         "Da9sd8h7HBpoS", "2374988", 0,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 2,
-                         "6gFBDF8dfbdff", "9840947", 4,
-                         "nf12daOHfpdf6", "1058401", 1,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 2,
-                         "89jf4ln89LJk0", "6516808", 3,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 4,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "nf12daOHfpdf6", "9032941", 3,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 4,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 3,
-                         "Da9sd8h7HBpoS", "2374988", 2,
-                         "Da9sd8h7HBpoS", "2374988", 0,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 2,
-                         "6gFBDF8dfbdff", "9840947", 4,
-                         "nf12daOHfpdf6", "1058401", 1,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 2,
-                         "89jf4ln89LJk0", "6516808", 3,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 4,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "nf12daOHfpdf6", "9032941", 3,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 4,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 3,
-                         "Da9sd8h7HBpoS", "2374988", 2,
-                         "Da9sd8h7HBpoS", "2374988", 0,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 2,
-                         "6gFBDF8dfbdff", "9840947", 4,
-                         "nf12daOHfpdf6", "1058401", 1,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 2,
-                         "89jf4ln89LJk0", "6516808", 3,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 4,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "nf12daOHfpdf6", "9032941", 3,
-                         "Da9sd8h7HBpoS", "2374988", 1,
-                         "a1bKHLk67hkkh", "4234247", 3,
-                         "89jf4ln89LJk0", "6516808", 4,
-                         "6gFBDF8dfbdff", "9840947", 2,
-                         "nf12daOHfpdf6", "1058401", 3,
-                         "Da9sd8h7HBpoS", "2374988", 2};
+    char *titles[3] = {"CIPHER", "KEY", "FOUNDER"};
+    char* keys[75] = {"Da9sd8h7HBpoS", "2374988", "0",
+                         "a1bKHLk67hkkh", "4234247", "3",
+                         "89jf4ln89LJk0", "6516808", "2",
+                         "6gFBDF8dfbdff", "9840947", "4",
+                         "nf12daOHfpdf6", "1058401", "1",
+                         "Da9sd8h7HBpoS", "2374988", "1",
+                         "a1bKHLk67hkkh", "4234247", "2",
+                         "a1bKHLk67hkkh", "4234247", "3",
+                         "89jf4ln89LJk0", "6516808", "2",
+                         "6gFBDF8dfbdff", "9840947", "4",
+                         "nf12daOHfpdf6", "1058401", "1",
+                         "Da9sd8h7HBpoS", "2374988", "1",
+                         "a1bKHLk67hkkh", "4234247", "2",
+                         "a1bKHLk67hkkh", "4234247", "3",
+                         "89jf4ln89LJk0", "6516808", "2",
+                         "6gFBDF8dfbdff", "9840947", "4",
+                         "nf12daOHfpdf6", "1058401", "1",
+                         "Da9sd8h7HBpoS", "2374988", "1",
+                         "a1bKHLk67hkkh", "4234247", "2",
+                         "a1bKHLk67hkkh", "4234247", "3",
+                         "89jf4ln89LJk0", "6516808", "2",
+                         "6gFBDF8dfbdff", "9840947", "4",
+                         "nf12daOHfpdf6", "1058401", "1",
+                         "Da9sd8h7HBpoS", "2374988", "1",
+                         "a1bKHLk67hkkh", "4234247", "2"};
     
-    print_cipher_key(3, keys, 72);
+    print_table(titles, keys, 25, 3);
 
     return 0;
 }
@@ -103,69 +66,82 @@ char* my_itoa(int i) {
     return str;
 }
 
-int print_table(char **colname, char ***item, int nrows, int ncols) {
+int print_table(char **colname, char **item, int nrows, int ncols) {
     
     int i, j;
     int rows_left = -1;
+    char heading[TERM_WIDTH];
+    char row_format[100];
     
-    /* Need dynamic column calculation
-    char header_format[] = "| %-20s | %-10s | %-10s |\n\
---------------------------------------------------\n"; // Total length 50
-    char row_format[] = "| %-20s | %-10s | %-10s |\n";
-    */
+    if (colname == NULL || item == NULL || nrows < 0 || ncols < 0,
     
-    if (colname == NULL || item == NULL || nrows < 0 || ncols < 0)
+        /* This limitation is crap, but I have to think of it */ ncols > 4){
         return 1;
+    }
         
-    /* Calculate headings */
+    format_table(colname,
+                 item,
+                 nrows,
+                 ncols,
+                 heading,
+                 row_format,
+                 TERM_WIDTH,
+                 100);
         
     rows_left = nrows;
     for (i = 0; i <= nrows / (ITEMS_PER_PAGE - 3); ++i) {
     
         system("clear");
         
-        /* Print heading */
+        printf("%s\n", heading);
+        for (j = 0; j < strlen(heading); ++j)
+            putchar('=');
+        putchar('\n');
         
         for (j = nrows - rows_left;
              j < nrows && j / (ITEMS_PER_PAGE - 3) <= i;
              ++j)
         {
-            printf(row_format, ...);
+            // Crap reflexes here <-----------------------------------------------------------
+            switch(ncols) {
+                case 1:
+                    printf(row_format, *(item +j*ncols + 0));
+                    break;
+                case 2:
+                    printf(row_format, *(item +j*ncols + 0),
+                                       *(item +j*ncols + 1));
+                    break;
+                case 3:
+                    printf(row_format, *(item +j*ncols + 0),
+                                       *(item +j*ncols + 1),
+                                       *(item +j*ncols + 2));
+                    break;
+                case 4:
+                    printf(row_format, *(item +j*ncols + 0),
+                                       *(item +j*ncols + 1),
+                                       *(item +j*ncols + 2),
+                                       *(item +j*ncols + 3));
+                    break;
+            }
             --rows_left;
         
         }
         
         putchar('\n');
-        if (items_left) {
+        if (rows_left) {
             printf("\nPress <ENTER> to continue...");
             getchar();
         } else {
-            printf("%50s\n", "-----------------------------");
-            printf("%41s: %7s\n", "Number of keys found", my_itoa(numitems));
+            printf("%s\n", "-----------------------------");
+            printf("%s: %s\n\n\n", "Number of keys found", my_itoa(nrows * ncols));
         }
     }
     
     return 0;
 }
 
-/* Finds index of longest string */
-int find_longest_str(char **arr, int nitems){
-
-    int longest = 0, longest_i = -1;
-    
-    if (arr == NULL || nitems < 0)
-        return -1;
-        
-    for (i = 0; i < nitems; ++i) {
-        if (strlen(arr[i]) > longest)
-            longest_i = i;
-    }
-    
-    return longest_i;    
-}
-
 int format_table(char **colname,   // Column headings
-                 char ***item,     // Table content
+                 char **item,     // Table content
                  int nrows,        // Number of rows
                  int ncols,        // Number of columns
                  char *heading,    // Buffer for heading string
@@ -173,33 +149,29 @@ int format_table(char **colname,   // Column headings
                  int max_width,    // 'heading''s size
                  int format_size)  // 'row_format''s size
 {
-    int i;
+    int i, j;
     int tmp;
     int *col_width;
-    char **tmp_col;
     int available_width = TERM_WIDTH;
     char buf[50], buf1[10];
     
     if ((col_width = calloc(ncols, sizeof(int))) == NULL) // Initialized to 0
         return 1;
-        
-    if ((tmp_col = malloc(nrows * sizeof(char *))) == NULL)
-        return 1;
     
+    /* For each column we must find its width
+     * 
+     */
     for (i = 0; i < ncols; ++i) {
-        
-        // Transform table into vector to use 'find_longest_str'
-        for (j = 0; j < ncols * nrows; ++j) {
-            if (j % ncols == i)
-                tmp_col[j / ncols] = item[j / ncols][i];
+
+        col_width[i] = strlen(colname[i]);
+        for (j = 0; j < nrows; ++j) {
+            tmp = strlen(*(item + j*ncols + i));
+            if (tmp > col_width[i]) {
+                col_width[i] = tmp;
+            }
         }
         
-        // Now get longest string, taking heading into account
-        col_width[i] = strlen(tmp_col[find_longest_str(tmp_col, ncols)]);
-        if ((tmp = strlen(colname[i])) > col_width[i])
-            col_width[i] = tmp;
-        
-    }
+    }    
     
     // If columns' width does not cover terminal's width, distribute the rest of
     // the width evenly among the columns
@@ -219,10 +191,12 @@ int format_table(char **colname,   // Column headings
         
     }
     
+    // EVERYTHING OKAY UNTIL HERE
+    
     // Now build heading...
     snprintf(heading, max_width, "| %-*s ", col_width[0], colname[0]);
     for (i = 1; i < ncols; ++i){
-        snprintf(buf, sizeof(buf), "| %-*s ", colname[i]);
+        snprintf(buf, sizeof(buf), "| %-*s ", col_width[i], colname[i]);
         strncat(heading, buf,  sizeof(heading) - strlen(heading));
     }
     strncat(heading, "|", sizeof(heading) - strlen(heading));
@@ -232,18 +206,17 @@ int format_table(char **colname,   // Column headings
     
         snprintf(buf, sizeof(buf), "%s", "| %-");
         snprintf(buf1, sizeof(buf1), "%d", col_width[i]);
-        strncat(buf, buf1, sizeof(buf) - strleng(buf));
-        strncat(buf, "s ", sizeof(buf) - strleng(buf));
+        strncat(buf, buf1, sizeof(buf) - strlen(buf));
+        strncat(buf, "s ", sizeof(buf) - strlen(buf));
         
         if (i == 0) {
             snprintf(row_format, format_size,  "%s", buf);
         } else {
-            strncat(row_format, buf,  format_size - strlen(row_format));
+            strncat(row_format, buf, format_size - strlen(row_format));
         }
     }
-    strncat(row_format, "|", format_size - strlen(row_format));
+    strncat(row_format, "|\n", format_size - strlen(row_format));
     
-    free(tmp_col);
     free(col_width);
     
     return 0;
