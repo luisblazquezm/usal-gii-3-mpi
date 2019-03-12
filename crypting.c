@@ -292,7 +292,7 @@ int IO_proccess(char *argv[], int num_procs)
 
 		/* Find free proccesses and assign it to them. Maybe including them into a group. *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
 		
-		/* Assign a key to a proccess *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+		/* Assign a key to a proccess */
 		
 		if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (1)");
@@ -333,7 +333,7 @@ int IO_proccess(char *argv[], int num_procs)
 			p_table[n_proc]->stats.num_tries = data_msg.num_tries;
 			p_table[n_proc]->stats.key_time[n_key] = data_msg.time;
 
-			/* Assign a key to a proccess *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+			/* Assign a key to a proccess */
 			
 			if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (2)");
