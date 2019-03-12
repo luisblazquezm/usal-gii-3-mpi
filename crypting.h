@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "mpi.h"
 
@@ -28,37 +29,24 @@ typedef struct {
     int length;
 	unsigned long key;
 	char* cypher;
-} key_t;
+} key_data_t;
 
 typedef struct {
 	int message_id;
-	key_t key;
-	int process_id;
+	key_data_t key;
+	int proccess_id;
 	unsigned long num_tries;
 	double time;
 } msg_data_t;
 
 typedef struct {
 	int message_id;
-	key_t key;
+	key_data_t key;
 	unsigned long min_value;
 	unsigned long max_value;
 } msg_decrypt_t;
 
 /* ==================== TABLES ==================== */
-
-struct proc_table_row {
-	int proc_id;
-	statistics_t stats;
-}
-
-struct key_table_row {
-	int key_id;
-	key_t key;
-	int *procs;
-	int num_procs_list;
-	int decrypted_flag;
-}
 
 typedef struct {
 	int* list_of_keys;
@@ -69,28 +57,42 @@ typedef struct {
 	double exec_time;
 } statistics_t;
 
+struct proc_table_row {
+	int proc_id;
+	statistics_t stats;
+};
+
+struct key_table_row {
+	int key_id;
+	key_data_t key;
+	int *procs;
+	int num_procs_list;
+	int decrypted_flag;
+};
+
+
 typedef struct proc_table_row* proc_table_t;
 typedef struct key_table_row* key_table_t;
 
 /* Process tasks functions */
-int calculator_process(char *argv[], int process_id);
-int IO_process(char *argv[], int num_procs) ;
+int calculator_proccess(char *argv[], int proccess_id); 
+int IO_proccess(char *argv[], int num_procs);
 
 /* Other functions. They could be included in a utils.h */
-int construct_key_type(int num_keys, user_msg_t* data, MPI_Datatype* MPI_Type);
-int construct_decrypt_msg(int num_keys, user_msg_t* data, MPI_Datatype* MPI_Type); 
-int construct_data_msg(int num_keys, user_msg_t* data, MPI_Datatype* MPI_Type);
-void assign_key_to_proccess(int id, key_table_t k_table, int num_keys);
+int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type);
+int construct_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Type); 
+int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type);
+int assign_key_to_proccess(int proc_id, key_table_t k_table, int num_keys, int num_procs);
 
 /* KEY HANDLE FUNCTIONS */
-key_t key_generator(int id);
+key_data_t key_generator(int id);
 char *key_encrypter(unsigned long key); 
 int key_decrypter(msg_decrypt_t msg, clock_t* end, int* key_found);
 
 /* TABLE HANDLE FUNCTIONS */
-void initialice_table_of_keys(key_table_t *k_table, proc_table_t *p_table, int num_proc, int num_keys); 
-int search_keys_not_assigned(key_table_t k_table, int num_keys);
-int search_keys_not_decrypted(key_table_t k_table, int num_keys);
-int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* num_proc, int* procs_calc);
+int initialice_table_of_keys(key_table_t *k_table, proc_table_t *p_table, int n_proc, int num_keys); 
+int search_keys_not_assigned(key_table_t k_table, int num_keys, key_data_t *key);
+int are_there_keys_not_decrypted(key_table_t k_table, int num_keys);
+int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* num_proc, int** procs_calc, key_data_t *key);
 
 
