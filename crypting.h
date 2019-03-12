@@ -91,7 +91,7 @@ int key_decrypter(msg_decrypt_t msg, clock_t* end, int* key_found);
 
 /* TABLE HANDLE FUNCTIONS */
 int initialice_table_of_keys(key_table_t *k_table, proc_table_t *p_table, int n_proc, int num_keys); 
-int search_keys_not_assigned(key_table_t k_table, int num_keys, key_data_t *key);
+int search_keys_not_assigned(key_table_t k_table, int num_procs, key_data_t *key);
 int are_there_keys_not_decrypted(key_table_t k_table, int num_keys);
 int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* num_proc, int** procs_calc, key_data_t *key);
 

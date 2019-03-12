@@ -293,7 +293,6 @@ int IO_proccess(char *argv[], int num_procs)
 		/* Find free proccesses and assign it to them. Maybe including them into a group. *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
 		
 		/* Assign a key to a proccess */
-		
 		if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (1)");
 			return -1;
@@ -334,7 +333,6 @@ int IO_proccess(char *argv[], int num_procs)
 			p_table[n_proc]->stats.key_time[n_key] = data_msg.time;
 
 			/* Assign a key to a proccess */
-			
 			if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (2)");
 				return -1;
@@ -492,24 +490,28 @@ int initialice_table_of_keys(key_table_t *k_table, proc_table_t *p_table, int n_
  *                                     *
  *  Searchs for any key that is not    *
  *  assigned to a proccess             *
- *  in the keys´ table                 *
+ *  in the keys´ table.                *
+ *  All the procceses must have a key  *
+ *  at the beggining of the program.   *
+ *  When that happens,                 *
+ *  this will return 0                 *
  *                                     *
  *  Return: if a key with no proccess  *
  *          assigned is found          *
  *          returns 1                  *
  *			Otherwise, returns 0       *
  ***************************************/
-int search_keys_not_assigned(key_table_t k_table, int num_keys, key_data_t *key) 
+int search_keys_not_assigned(key_table_t k_table, int num_proc, key_data_t *key) 
 {
 
-	for (int i = 0 ; i < num_keys; i++) {
+	for (int i = 0 ; i < num_proc; i++) {
 		if (k_table[i].procs[0] == -1){ // The first position of the ids of procs is empty 
 			*key = k_table[i].key;
 			return 1;
 		}
 	}
 
-	return 0; // All the keys have been asigned to any proccess
+	return 0; // All the proccesses are occupied
 }
 
 /***************************************
