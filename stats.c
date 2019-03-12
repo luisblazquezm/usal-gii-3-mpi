@@ -4,26 +4,41 @@
 #include "stats.h"
 
 // Standard terminal VT100 is 80 x 25
-#define TERM_WIDTH  79
-#define TERM_HEIGHT 20
-#define ITEMS_PER_PAGE 10
+#define TERM_WIDTH      79
+#define TERM_HEIGHT     24
+#define ITEMS_PER_PAGE  22
+#define N_PROCS         5
 
-int print_table(char **colname, char **item, int nrows, int ncols);
+int print_table(char **colname,
+                char **item,
+                int nrows,
+                int ncols,
+                char *last_page_message);
+
 int print_cipher_key(int founder, key_type *key, int numitems);
+
 char* my_itoa(int i);
-int format_table(char **colname,   // Column headings
-                 char **item,     // Table content
-                 int nrows,        // Number of rows
-                 int ncols,        // Number of columns
-                 char *heading,    // Buffer for heading string
-                 char *row_format, // Buffer for row format
-                 int max_width,    // 'heading''s size
+
+int format_table(char **colname,
+                 char **item,
+                 int nrows,
+                 int ncols,
+                 char *heading,
+                 char *row_format,
+                 int max_width,
                  int format_size);
+                 
+int display_stats(char **found_keys, int nkeys,
+                  char **keys_per_proc, int nprocs,
+                  int n_calls_rand_crypt,
+                  int nattempts,
+                  double secs_per_key,
+                  double runtime);
 
 int main(void)
 {
-    char *titles[3] = {"CIPHER", "KEY", "FOUNDER"};
-    char* keys[75] = {"Da9sd8h7HBpoS", "2374988", "0",
+
+    char* keys[25][3] = {"Da9sd8h7HBpoS", "2374988", "0",
                          "a1bKHLk67hkkh", "4234247", "3",
                          "89jf4ln89LJk0", "6516808", "2",
                          "6gFBDF8dfbdff", "9840947", "4",
@@ -48,10 +63,119 @@ int main(void)
                          "nf12daOHfpdf6", "1058401", "1",
                          "Da9sd8h7HBpoS", "2374988", "1",
                          "a1bKHLk67hkkh", "4234247", "2"};
+                         
+    char *keys_per_proc[5][2] = {"0", "6",
+                                 "1", "5",
+                                 "2", "3",
+                                 "3", "5",
+                                 "4", "6"};
     
-    print_table(titles, keys, 25, 3);
+    display_stats((char **)keys, 25,
+                  (char **)keys_per_proc, 5,
+                  23423,
+                  2342,
+                  12.9,
+                  1234.23);
 
     return 0;
+}
+
+void print_horizontal_bar(char c, int len, int newline)
+{
+    int i;
+    
+    for (i = 0; i < len; ++i)
+        putchar(c);
+    if (newline)
+        putchar('\n');
+}
+
+int display_stats(char **found_keys, int nkeys,
+                  char **keys_per_proc, int nprocs,
+                  int n_calls_rand_crypt,
+                  int nattempts,
+                  double secs_per_key,
+                  double runtime)
+{
+    int i, tmp;
+
+    char border_char = '*';
+    char inner_char = '-';
+    char *titles_keys[3] = {"TEXTO CIFRADO", "CLAVE", "DESCUBRIDOR",};
+    char *titles_keys_per_proc[2] = {"PROCESO", "NUMERO DE CLAVES"};
+    char sumup_title[] = "RESUMEN";
+    char buf[100];
+    int padding = 8;
+    
+    // Display tables
+        // Display found keys
+        // Display keys per process
+    
+    // Display non-tables
+        // Display calls to rand() and crypt()
+        // Display number of attempts
+        // Display mean seconds per key
+        // Display number of processes
+        // Display running time
+        
+    // DISPLAY TABLES
+    snprintf(buf, sizeof(buf), "Numero de claves encontradas: %d", nkeys);
+    print_table(titles_keys, (char **)found_keys, nkeys, 3, buf);
+    print_table(titles_keys_per_proc, (char **)keys_per_proc, nprocs, 2, NULL);
+    
+    
+    // DISPLAY NON-TABLES
+    system("clear");
+    
+    print_horizontal_bar(border_char, TERM_WIDTH, 1);
+    tmp = (TERM_WIDTH - strlen(sumup_title))/2 - 2;
+    printf ("%c %*s%-s%*s %c\n", border_char, tmp, "", sumup_title, tmp, "", border_char);
+    
+    print_horizontal_bar(border_char, TERM_WIDTH, 1);
+    
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    snprintf(buf, sizeof(buf), "Numero de procesos: %d procesos", nprocs);
+    printf ("%c %-*s %c\n", border_char, TERM_WIDTH - 4, buf, border_char);
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    putchar(border_char);
+    print_horizontal_bar(inner_char, TERM_WIDTH - 2, 0);
+    putchar(border_char);
+    putchar('\n');
+    
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    snprintf(buf, sizeof(buf), "Estadisticas");
+    printf ("%c %-*s %c\n", border_char, TERM_WIDTH - 4, buf, border_char);
+    
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    
+    snprintf(buf, sizeof(buf), "Numero de llamadas a rand/crypt: %d llamadas", n_calls_rand_crypt);
+    printf ("%-*c- %-*s %c\n", padding + 1, border_char, TERM_WIDTH - padding - 5, buf, border_char);
+    
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    snprintf(buf, sizeof(buf), "Numero de intentos: %d intentos", nattempts);
+    printf ("%-*c- %-*s %c\n", padding + 1, border_char, TERM_WIDTH - padding - 5, buf, border_char);
+    
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    snprintf(buf, sizeof(buf), "Numero medio de segundos por clave: %.4lf s", secs_per_key);
+    printf ("%-*c- %-*s %c\n", padding + 1, border_char, TERM_WIDTH - padding - 5, buf, border_char);
+    
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    
+    putchar(border_char);
+    print_horizontal_bar(inner_char, TERM_WIDTH - 2, 0);
+    putchar(border_char);
+    putchar('\n');
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    snprintf(buf, sizeof(buf), "Tiempo total de ejecucion: %.4lf s", runtime);
+    printf ("%c %-*s %c\n", border_char, TERM_WIDTH - 4, buf, border_char);
+    printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
+    print_horizontal_bar(border_char, TERM_WIDTH, 1);
+    
+    printf("\nPress <ENTER> to continue...");
+    getchar();
+    
+    return 0;
+    
 }
 
 char* my_itoa(int i) {
@@ -66,7 +190,11 @@ char* my_itoa(int i) {
     return str;
 }
 
-int print_table(char **colname, char **item, int nrows, int ncols) {
+int print_table(char **colname,
+                char **item,
+                int nrows,
+                int ncols,
+                char *last_page_message) {
     
     int i, j;
     int rows_left = -1;
@@ -78,7 +206,7 @@ int print_table(char **colname, char **item, int nrows, int ncols) {
         /* This limitation is crap, but I have to think of it */ ncols > 4){
         return 1;
     }
-        
+
     format_table(colname,
                  item,
                  nrows,
@@ -102,7 +230,7 @@ int print_table(char **colname, char **item, int nrows, int ncols) {
              j < nrows && j / (ITEMS_PER_PAGE - 3) <= i;
              ++j)
         {
-            // Crap reflexes here <-----------------------------------------------------------
+            // Crap has this consequence <-----------------------------------------------------------
             switch(ncols) {
                 case 1:
                     printf(row_format, *(item +j*ncols + 0));
@@ -132,8 +260,12 @@ int print_table(char **colname, char **item, int nrows, int ncols) {
             printf("\nPress <ENTER> to continue...");
             getchar();
         } else {
-            printf("%s\n", "-----------------------------");
-            printf("%s: %s\n\n\n", "Number of keys found", my_itoa(nrows * ncols));
+            if (last_page_message != NULL) {
+                print_horizontal_bar('-', strlen(last_page_message), 1);
+                printf("%s\n\n\n", last_page_message);
+            }
+            printf("\nPress <ENTER> to continue...");
+            getchar();
         }
     }
     
@@ -170,8 +302,7 @@ int format_table(char **colname,   // Column headings
                 col_width[i] = tmp;
             }
         }
-        
-    }    
+    }
     
     // If columns' width does not cover terminal's width, distribute the rest of
     // the width evenly among the columns
