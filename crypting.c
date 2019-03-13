@@ -101,10 +101,17 @@ int calculator_proccess(char *argv[], int proccess_id)
 	MPI_Datatype MPI_DECRYPT_MSG_T;
 	MPI_Datatype MPI_DATA_MSG_T;
 
+	/* ======================  CHECKING PARAMETERS ====================== */
+
 	if(argv[1] == NULL){
-		printf("Introduce the number of keys that you want generate\n");
+		printf("Introduce the number of keys that you want generate\n"); /* DEBUG */
 	}else{
 		num_keys = atoi(argv[1]);
+	}
+
+	if (-1 == proccess_id) {
+		fprintf(stderr, "%s\n", "calculator_proccess: procces_id is -1");
+		return -1;
 	}
 
 	/* ======================  CREATING TYPES OF MESSAGES ====================== */
@@ -446,6 +453,23 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 	MPI_Request request;
 	MPI_Status status;
 
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (-1 == proc_id) {
+		fprintf(stderr, "%s\n", "assign_key_to_proccess: procces_id is -1");
+		return -1;
+	}
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "assign_key_to_proccess: num_keys is 0");
+		return -1;
+	}
+
+	if (0 == num_procs) {
+		fprintf(stderr, "%s\n", "assign_key_to_proccess: num_procs is 0");
+		return -1;
+	}
+
 	if (NULL == (procs_calc = malloc(num_procs * sizeof(int)))) { 
 		fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in malloc(procs_calc)");
 		return -1;
@@ -602,6 +626,18 @@ int initialice_table_of_keys(key_table_t k_table[], proc_table_t p_table[], int 
 {
 	int i, j;
 
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == n_proc) {
+		fprintf(stderr, "%s\n", "initialice_table_of_keys: n_proc is 0");
+		return -1;
+	}
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "initialice_table_of_keys: num_keys is 0");
+		return -1;
+	}
+
 	/* KEY TABLE */
 	for (i = 0; i < num_keys; i++) {
 
@@ -660,6 +696,13 @@ int initialice_table_of_keys(key_table_t k_table[], proc_table_t p_table[], int 
  ***************************************/
 int search_free_procs(proc_table_t p_table[], int num_proc, int* proc_id) 
 {	
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == num_proc) {
+		fprintf(stderr, "%s\n", "search_free_procs: num_proc is 0");
+		return -1;
+	}
+
 	for (int i = 0 ; i < num_proc; i++) {
 		if (p_table[i]->occupied_flag == 0){ 
 			*proc_id = i;
@@ -684,6 +727,14 @@ int search_free_procs(proc_table_t p_table[], int num_proc, int* proc_id)
  ***************************************/
 int are_there_keys_not_decrypted(key_table_t k_table[], int num_keys) 
 {
+
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "are_there_keys_not_decrypted: num_keys is 0");
+		return -1;
+	}
+
 	for (int i = 0; i < num_keys; i++) {
 		if (k_table[i]->decrypted_flag == 0)  
 			return 1;
@@ -709,6 +760,13 @@ int search_keys_with_min_num_of_procs(key_table_t k_table[], int num_keys, int* 
 	int i = 0;
 	int key_id = -1;
 	*num_procs = k_table[0]->num_procs_list;
+
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "search_keys_with_min_num_of_procs: num_keys is 0");
+		return -1;
+	}
 
 	for (i = 0 ; i < num_keys; i++) {
 
@@ -748,6 +806,8 @@ int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[])
 {
 	int num_procs_list = 0;
 
+	/* ======================  CHECKING PARAMETERS ====================== */
+
 	if (-1 == proc_id) {
 		fprintf(stderr, "%s\n", "register_proccess_key_table: key_id is -1");
 		return -1;
@@ -785,6 +845,13 @@ int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 	MPI_Aint memory_address_distances[N_KEY_ELEMENTS];
 
 	MPI_Datatype *MPI_CHAR_ARRAY; /* char * type in MPI */
+
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "construct_key_type: num_keys is 0");
+		return -1;
+	}
 
 	/* 
 	 * Indicates the types of the struct
@@ -868,6 +935,13 @@ int construct_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_T
 
 	MPI_Datatype MPI_KEY_T;
 
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "construct_decrypt_msg: num_keys is 0");
+		return -1;
+	}
+
 	/* CONSTRUCTS pMPI_KEY_T */
 	if (-1 == construct_key_type(num_keys, &(data->key), &MPI_KEY_T)) {
 		fprintf(stderr, "%s\n", "construct_decrypt_msg: ERROR in construct_key_type");
@@ -942,6 +1016,13 @@ int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type)
 	MPI_Aint memory_address_distances[N_DATA_MESSAGE_ELEMENTS];
 
 	MPI_Datatype MPI_KEY_T;
+
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if (0 == num_keys) {
+		fprintf(stderr, "%s\n", "construct_data_msg: num_keys is 0");
+		return -1;
+	}
 
 	/* CONSTRUCTS pMPI_KEY_T */
 	if (-1 == construct_key_type(num_keys, &(data->key), &MPI_KEY_T)) {
