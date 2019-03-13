@@ -844,8 +844,6 @@ int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 	MPI_Aint memory_address[N_KEY_ELEMENTS + 1];
 	MPI_Aint memory_address_distances[N_KEY_ELEMENTS];
 
-	MPI_Datatype *MPI_CHAR_ARRAY; /* char * type in MPI */
-
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (0 == num_keys) {
@@ -865,28 +863,16 @@ int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 	 *
 	 */
 
-    /* Create array of char or char* in MPI to store the encrypted keys */
-	if (MPI_SUCCESS != MPI_Type_vector(num_keys, 1, num_keys, MPI_CHAR, MPI_CHAR_ARRAY) ) {
-		fprintf(stderr, "%s\n", "construct_key_type: ERROR in MPI_Type_vector");
-		return -1;
-	}
-
-	/* Certificate it before being used */
-	if (MPI_SUCCESS != MPI_Type_commit(MPI_CHAR_ARRAY) ) {
-		fprintf(stderr, "%s\n", "construct_key_type: ERROR in MPI_Type_Commit (1)");
-		return -1;
-	}
-
 	types[0] = MPI_INT;
 	types[1] = MPI_INT;
 	types[2] = MPI_UNSIGNED_LONG;
-	types[3] = *MPI_CHAR_ARRAY; //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT SURE IF THIS WORKS
+	types[3] = MPI_CHAR; 
 
 	/* Indicate the numbers of elements of each type */
 	lengths[0] = 1;
 	lengths[1] = 1;
 	lengths[2] = 1;
-	lengths[3] = 1;
+	lengths[3] = CRYPT_LENGTH;
 
 	/* Calculate the position of the elements in the memory address regarding the beginning of the struct */
 	MPI_Address(data, &memory_address[0]);
