@@ -668,7 +668,7 @@ int initialice_table_of_keys(key_table_t k_table[], proc_table_t p_table[], int 
 	/* PROCCESSES TABLE */
 	for (i = 0; i < n_proc; i++) {
 			
-		p_table[i]->proc_id = j;
+		p_table[i]->proc_id = i;
 		p_table[i]->occupied_flag = 0;
 
 		/* STATISTICS */
