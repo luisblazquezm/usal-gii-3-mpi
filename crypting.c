@@ -143,9 +143,13 @@ int calculator_proccess(char *argv[], int proccess_id)
 			key_available = key_decrypter(decrypt_msg, &end, &key_found);
 
 			if(key_found == 1){
+				end = clock();
 
 				/* Store this data into the data message to send *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-				
+				if (-1 == fill_data_msg(&data_msg, &decrypt_msg, proccess_id, num_tries, begin, end) ) {
+					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (1)");
+					return -1;
+				}
 
 				if (MPI_SUCCESS != MPI_Send(&data_msg , 1, MPI_DATA_MSG_T, IO_PROCESS_ID, DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
 					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Send (1)");
@@ -170,8 +174,6 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 					case DECRYPT_MESSAGE_TAG:
 
-						/* Store data into the decrypt message to send *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-
 						if (MPI_SUCCESS != MPI_Irecv(&decrypt_msg , 1, MPI_DECRYPT_MSG_T, IO_PROCESS_ID, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
 							fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
 							return -1;
@@ -184,6 +186,10 @@ int calculator_proccess(char *argv[], int proccess_id)
 						if(key_found == 1){
 
 							/* Store data into the data message to send *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+							if (-1 == fill_data_msg(&data_msg, &decrypt_msg, proccess_id, num_tries, begin, end) ) {
+								fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (2)");
+								return -1;
+							}
 
 							if (MPI_SUCCESS != MPI_Send(&data_msg , 1, MPI_DATA_MSG_T, IO_PROCESS_ID, DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) { /* VOID MESSAGE */
 								fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Send (2)");
@@ -267,7 +273,7 @@ int IO_proccess(char *argv[])
 
 	/* ======================  CREATE TABLE OF KEYS AND PROCCESSES ====================== */
 
-	if (-1 == initialice_table_of_keys(k_table, p_table, num_procs, num_keys)) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< k_table and p_table by reference!!!!!!
+	if (-1 == initialice_table_of_keys(k_table, p_table, num_procs, num_keys)) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< k_table and p_table by reference!!!!!!. Is it ok?
 		fprintf(stderr, "%s\n", "IO_proccess: initialice_table_of_keys");
 		return -1;
 	}
@@ -313,10 +319,12 @@ int IO_proccess(char *argv[])
 			}
 
 			/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-			key_id_rcv = data_msg.key.key_id;
-			proc_id_rcv = data_msg.proccess_id;
+			if (-1 == store_data(p_table, data_msg) ){
+				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (1)");
+				return -1;
+			}
 
-			/* IMprimir clave encontrada en tiempo real *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+			/* IMprimir clave encontrada en tiempo real *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET (but this is for Samuel)
 
 			/* Assign a key to a proccess */
 			if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
@@ -343,6 +351,11 @@ int IO_proccess(char *argv[])
 		} 
 
 		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+		if (-1 == store_data(p_table, data_msg) ){
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (2)");
+			return -1;
+		}
+
 		key_id_rcv = data_msg.key.key_id;
 		proc_id_rcv = data_msg.proccess_id;
 		num_procs_key = k_table[key_id_rcv]->num_procs_list;
@@ -359,6 +372,11 @@ int IO_proccess(char *argv[])
 
 			if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, k_table[key_id_rcv]->procs[i], DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv (2)");
+				return -1;
+			}
+
+			if (-1 == store_data(p_table, data_msg) ){
+				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (3)");
 				return -1;
 			}
 
@@ -470,6 +488,11 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 			return -1;
 		}
 
+		if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
+			return -1;
+		}
+
 		if (MPI_SUCCESS != MPI_Send(&decrypt_msg, 1, MPI_DECRYPT_MSG_T, proc_id, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD) ) { /* VOID MESSAGE */
 			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in MPI_Send (1)");
 			return -1;
@@ -499,12 +522,22 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 				return -1;
 			}
 
+			if (-1 == store_data(p_table, data_msg) ){
+				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in store_data");
+				return -1;
+			}
+
 		}
 
-		/* Store data from message *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+		/* Distribuir trabajo equitativamente *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
 		
-		/* Notify the procceses that their key is going to be calculated by a new proccess */ //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+		/* Notify the procceses that their key is going to be calculated by a new proccess */ //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< I don´t undesrtand this part XD
 		for (i = 0; i < num_procs_calc; i++) {
+
+			if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
+				return -1;
+			}
 
 			if (MPI_SUCCESS != MPI_Send(&decrypt_msg, 1, MPI_DECRYPT_MSG_T, procs_calc[i], DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD) ) { /* VOID MESSAGE */
 				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in MPI_Send (3)");
