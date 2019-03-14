@@ -91,15 +91,15 @@ int search_keys_with_min_num_of_procs(key_table_t k_table[], int num_keys, int* 
 /* KEY HANDLE FUNCTIONS */
 key_data_t key_generator(int id);
 char *key_encrypter(unsigned long key); 
-int key_decrypter(msg_decrypt_t msg, clock_t* end, int* key_found);
+int key_decrypter(msg_decrypt_t *msg, clock_t* end, int* key_found);
 
 /* TABLE HANDLE FUNCTIONS */
 int initialice_table_of_keys(key_table_t k_table[], proc_table_t *p_table, int n_proc, int num_keys); 
 int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[]);
 
-/* FUNCTIONS LEFT */
 int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
 int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long max_value, unsigned long min_value);
+/* FUNCTIONS LEFT */
 int store_data(proc_table_t p_table[], msg_data_t data_msg);
 
 

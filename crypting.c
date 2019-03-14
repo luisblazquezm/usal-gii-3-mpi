@@ -140,12 +140,12 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 		do{
 			num_tries++;
-			key_available = key_decrypter(decrypt_msg, &end, &key_found);
+			key_available = key_decrypter(&decrypt_msg, &end, &key_found);
 
 			if(key_found == 1){
-				end = clock();
+			
 
-				/* Store this data into the data message to send *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+			
 				if (-1 == fill_data_msg(&data_msg, &decrypt_msg, proccess_id, num_tries, begin, end) ) {
 					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (1)");
 					return -1;
@@ -185,7 +185,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 						if(key_found == 1){
 
-							/* Store data into the data message to send *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+							
 							if (-1 == fill_data_msg(&data_msg, &decrypt_msg, proccess_id, num_tries, begin, end) ) {
 								fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (2)");
 								return -1;
@@ -488,7 +488,7 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 			return -1;
 		}
 
-		if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+		if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET (NO ENTIENDO QUE HAY QUE PASAR COMO MIN Y MAX VALUE A LA FUNCION)
 			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
 			return -1;
 		}
@@ -534,7 +534,7 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 		/* Notify the procceses that their key is going to be calculated by a new proccess */ //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< I don´t undesrtand this part XD
 		for (i = 0; i < num_procs_calc; i++) {
 
-			if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+			if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET(NO ENTIENDO QUE HAY QUE PASAR COMO MIN Y MAX VALUE, LA FUNCION ESTA  HECHA
 				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
 				return -1;
 			}
@@ -605,17 +605,20 @@ char *key_encrypter(unsigned long key)
  *  Return: if the key is found 0      *
  			Otherwise, returns 1       *
  ***************************************/
-int key_decrypter(msg_decrypt_t msg, clock_t* end, int* key_found)
+int key_decrypter(msg_decrypt_t* msg, clock_t* end, int* key_found)
 {
 	char decrypt_string[CRYPT_LENGTH];
-
+	char *ptr;
 	srand(1);
+	unsigned long decypher;
 
 	sprintf(decrypt_string, "%08ld", rand() % (msg.max_value) );
-	if (0 == strcmp(crypt(decrypt_string, "aa"), msg.key.cypher) ) {
+	if (0 == strcmp(crypt(decrypt_string, "aa"), msg->key.cypher) ) {
 		*end = clock();
 		*key_found = 1;
-		printf("Encontrada: %s->%s \n", msg.key.cypher, decrypt_string);/* DEBUG */
+		printf("Encontrada: %s->%s \n", msg->key.cypher, decrypt_string);/* DEBUG */
+		decypher=strtoul(decrypt_string,&ptr,10);
+		msg->key.key=decypher;
 		return 0;
 	}
 
@@ -1079,3 +1082,49 @@ int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type)
 
 	return 1;
 }
+
+
+/***************************************
+ * fill_data_msg                * 
+ ***************************************
+ *                                     *
+ *  Fills the data_msg_t we'll send    *
+ *     
+ *                     
+ *                                     *
+ *  Return: in case of error -1        *
+ 			Otherwise, returns 1       *
+ ***************************************/
+
+
+int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id, int num_tries, clock_t begin, clock_t end){
+data_msg->message_id=DATA_MESSAGE_TAG;
+data_msg->key=decrypt_msg->key;
+data_msg->proccess_id=proc_id;
+data_msg->num_tries=num_tries;
+data_msg->time= (double) (end-begin);
+return 1;
+}
+
+/***************************************
+ * fill_decrypt_msg               * 
+ ***************************************
+ *                                     *
+ *  Fills the data_msg_t we'll send    *
+ *     
+ *                     
+ *                                     *
+ *  Return: in case of error -1        *
+ 			Otherwise, returns 1       *
+ ***************************************/
+
+int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long max_value, unsigned long min_value){
+decrypt_msg->message_id=DECRYPT_MESSAGE_TAG;
+decrypt_msg->key=key;
+decrypt_msg->min_value=min_value;
+decrypt_msg->max_value=max_value;
+return 1;
+}
+
+
+
