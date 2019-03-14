@@ -319,7 +319,7 @@ int IO_proccess(char *argv[])
 			}
 
 			/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-			if (-1 == store_data(p_table, data_msg) ){
+			if (-1 == store_data(p_table, data_msg, num_procs) ){
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (1)");
 				return -1;
 			}
@@ -351,7 +351,7 @@ int IO_proccess(char *argv[])
 		} 
 
 		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-		if (-1 == store_data(p_table, data_msg) ){
+		if (-1 == store_data(p_table, data_msg, num_procs) ){
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (2)");
 			return -1;
 		}
@@ -375,7 +375,7 @@ int IO_proccess(char *argv[])
 				return -1;
 			}
 
-			if (-1 == store_data(p_table, data_msg) ){
+			if (-1 == store_data(p_table, data_msg, num_procs) ){
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (3)");
 				return -1;
 			}
@@ -522,7 +522,7 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 				return -1;
 			}
 
-			if (-1 == store_data(p_table, data_msg) ){
+			if (-1 == store_data(p_table, data_msg, num_procs) ){
 				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in store_data");
 				return -1;
 			}
@@ -1127,4 +1127,30 @@ return 1;
 }
 
 
+/***************************************
+ * store_data                          * 
+ ***************************************
+ *                                     *
+ *  Fills the data_msg_t we'll send    *
+ *                                     *
+ *                     				   *
+ *                                     *
+ *  Return: in case of error -1        *
+ *			Otherwise, returns 1       *
+ ***************************************/
+
+int store_data(proc_table_t p_table[], msg_data_t data_msg, int num_procs){
+	int i;
+
+	for(i = 0; i < num_procs; i++){
+		if(p_table[i]->proc_id == data_msg.proccess_id){
+			p_table[i]->stats.n_keys += 1;
+			p_table[i]->stats.n_rand_crypt_calls += data_msg.num_tries;
+			p_table[i]->stats.key_proccesing_times[p_table[i]->stats.n_keys - 1] = data_msg.time;
+			return 1;
+		}
+	}
+
+	return -1;
+}
 
