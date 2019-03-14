@@ -8,9 +8,9 @@
 #define MIN                           00000000
 #define MAX                           100000000
 
-#define N_DECRYPT_MESSAGE_ELEMENTS          5
-#define N_KEY_ELEMENTS				        3
-#define N_DATA_MESSAGE_ELEMENTS       	    6
+#define N_DECRYPT_MESSAGE_ELEMENTS          4
+#define N_KEY_ELEMENTS				        4
+#define N_DATA_MESSAGE_ELEMENTS       	    5
 #define N_REQUEST_DATA_MESSAGE_ELEMENTS     1
 #define N_FINISH_EXECUTION_MESSAGE_ELEMENTS 1
 
@@ -96,5 +96,10 @@ int key_decrypter(msg_decrypt_t msg, clock_t* end, int* key_found);
 /* TABLE HANDLE FUNCTIONS */
 int initialice_table_of_keys(key_table_t k_table[], proc_table_t *p_table, int n_proc, int num_keys); 
 int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[]);
+
+/* FUNCTIONS LEFT */
+int fill_data_msg(msg_data_t* data_msg, /* Rest of the parameters ... */);
+int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, /* Rest of the parameters ... */);
+int store_data(proc_table_t p_table[], msg_data_t* data_msg);
 
 

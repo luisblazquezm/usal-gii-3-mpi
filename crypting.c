@@ -34,7 +34,7 @@
  *  To execute it : mpirun -np [numProcesos] crypt [arguments]
  */
 
-int main(int argc, char **argv) 
+int main(int argc, char *argv[]) 
 {
 	MPI_Init(&argc, &argv);
 
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 		}
 
 		printf("Hello, I am proccess nº %d\n", id); /* DEBUG */
-		printf("Pin pan trucu trucu %s", argv[2]); /* DEBUG */
+		printf("Pin pan trucu trucu %s", argv[1]); /* DEBUG */
 
 		if (id == 0) {
 			if (-1 == IO_proccess(argv)) {
@@ -145,11 +145,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 			if(key_found == 1){
 
 				/* Store this data into the data message to send *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-				data_msg.message_id = DATA_MESSAGE_TAG;
-				data_msg.key = decrypt_msg.key;
-				data_msg.proccess_id = proccess_id;
-				data_msg.num_tries = num_tries;
-				data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;
+				
 
 				if (MPI_SUCCESS != MPI_Send(&data_msg , 1, MPI_DATA_MSG_T, IO_PROCESS_ID, DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
 					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Send (1)");
@@ -285,25 +281,6 @@ int IO_proccess(char *argv[])
 
 	if (-1 == construct_data_msg(num_keys, &data_msg, &MPI_DATA_MSG_T)) {
 		fprintf(stderr, "%s\n", "IO_proccess: construct_data_msg");
-		return -1;
-	}
-
-	/* ======================  CREATING GROUP OF COMMUNICATION ====================== */
-
-	/* OBTIENE GRUPOS DEL COMUNICADOR MPI_COMM_WORLD */
-	if (MPI_SUCCESS != MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD)) {
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Comm_group");
-		return -1;
-	}
-
-	/* CREA EL NUEVO GRUPO */
-	if (MPI_SUCCESS != MPI_Group_incl(MPI_GROUP_WORLD, 1, IO_PROCESS_ID, &id_group)) { // We include the IO_proccess into the group 
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Group_incl");
-		return -1;
-	} 
-
-	if (MPI_SUCCESS != MPI_Comm_create(MPI_COMM_WORLD, id_group, &comm_group)) {  /* CREA EL NUEVO COMUNICADOR */
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Comm_create");
 		return -1;
 	}
 
@@ -840,7 +817,7 @@ int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[])
 int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type) 
 {
 	MPI_Datatype types[N_KEY_ELEMENTS];
-	int lengths[N_KEY_ELEMENTS + CRYPT_LENGTH - 1];
+	int lengths[N_KEY_ELEMENTS];
 	MPI_Aint memory_address[N_KEY_ELEMENTS + 1];
 	MPI_Aint memory_address_distances[N_KEY_ELEMENTS];
 
@@ -854,12 +831,12 @@ int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 	/* 
 	 * Indicates the types of the struct
 	 *
-	 * typedef struct {
-	 *		int key_id;
-		    int length;
-			unsigned long key;
-			char* cypher;
-	 *	} key_t;
+		typedef struct {
+			int key_id;								
+		    int length;								
+			unsigned long key;						
+			char cypher[CRYPT_LENGTH];				
+		} key_data_t;
 	 *
 	 */
 
@@ -945,8 +922,8 @@ int construct_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_T
 	 *	} msg_decrypt_t;
 	 *
 	 */
-	types[0] = MPI_KEY_T;
-	types[1] = MPI_INT;
+	types[0] = MPI_INT;
+	types[1] = MPI_KEY_T;
 	types[2] = MPI_UNSIGNED_LONG;
 	types[3] = MPI_UNSIGNED_LONG;
 
@@ -1020,12 +997,11 @@ int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type)
 	 * Indicates the types of the struct
 	 *
 	 * typedef struct {
-			int message_id;
-			Key_type key;
-			int proccess_id;
-			int length;
-			unsigned long num_tries;
-			double time;
+			int message_id;							
+			key_data_t key;							
+			int proccess_id;					
+			unsigned long num_tries;				
+			double time;							
 		} msg_data_t;
 	 *
 	 */
