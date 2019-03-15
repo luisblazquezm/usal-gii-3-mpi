@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 		}
 
 		printf("Hello, I am proccess nº %d\n", id); /* DEBUG */
-		printf("Pin pan trucu trucu %s", argv[1]); /* DEBUG */
+		//printf("Pin pan trucu trucu %s\n", argv[1]); /* DEBUG */
 
 		if (id == 0) {
 			if (-1 == IO_proccess(argv)) {
@@ -104,7 +104,8 @@ int calculator_proccess(char *argv[], int proccess_id)
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if(argv[1] == NULL){
-		printf("Introduce the number of keys that you want generate\n"); /* DEBUG */
+		num_keys = 5; /* DEBUG */
+		printf("(Proccess num %d) No argv. So num_keys will be %d\n", proccess_id, num_keys); /* DEBUG */
 	}else{
 		num_keys = atoi(argv[1]);
 	}
@@ -128,6 +129,8 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 	/* ======================  DECRYPTING / SENDING AND RECEIVING ====================== */
 
+	srand(1);
+
 	do{
 
 		if (MPI_SUCCESS != MPI_Recv(&decrypt_msg , 1, MPI_DECRYPT_MSG_T, IO_PROCESS_ID, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
@@ -140,16 +143,19 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 		do{
 			num_tries++;
+
 			key_available = key_decrypter(&decrypt_msg, &end, &key_found);
 
-			if(key_found == 1){
-			
+			//fprintf(stderr,"Intento numero %llu con flag de clave encontrada %d\n", num_tries, key_found); /* DEBUG */
 
+			if(key_found == 1){
 			
 				if (-1 == fill_data_msg(&data_msg, &decrypt_msg, proccess_id, num_tries, begin, end) ) {
 					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (1)");
 					return -1;
 				}
+
+				fprintf(stderr,"ENCONTRADA\n"); /* DEBUG */
 
 				if (MPI_SUCCESS != MPI_Send(&data_msg , 1, MPI_DATA_MSG_T, IO_PROCESS_ID, DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
 					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Send (1)");
@@ -166,7 +172,6 @@ int calculator_proccess(char *argv[], int proccess_id)
 				fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Iprobe");
 				return -1;
 			}
-
 
 			if(flag_probe != 0){
 
@@ -208,9 +213,9 @@ int calculator_proccess(char *argv[], int proccess_id)
 				}
 			}
 
-		} while(key_available == 0);
+		} while(0 == key_available);
 
-	} while(finish_execution == 0);
+	} while(0 == finish_execution);
 }
 
 /**************************************************
@@ -232,8 +237,8 @@ int IO_proccess(char *argv[])
 	key_to_assign.key_id = -1;
 
 	/* Tables */
-	key_table_t k_table[num_keys]; 		 // Table of keys 
-	proc_table_t p_table[num_procs];     // Table of proccesses 
+	key_table_t k_table; 		 // Table of keys 
+	proc_table_t p_table;        // Table of proccesses 
 
 	/* Messages */
 	msg_decrypt_t decrypt_msg;
@@ -244,6 +249,7 @@ int IO_proccess(char *argv[])
 	/* Flags*/
 	int msg_received_flag = 0;
 	int free_procs_flag = 0;
+	int keys_without_procs_flag = 0;
 
 	/* MPI stuff to create the group */
 	MPI_Group MPI_GROUP_WORLD;           
@@ -260,7 +266,8 @@ int IO_proccess(char *argv[])
 	int num_procs_key = 0, key_id_rcv = -1, proc_id_rcv = -1;
 
 	if(argv[1] == NULL) {
-		printf("Introduce the number of keys that you want generate\n");
+		num_keys = 5; /* DEBUG */
+		printf("(IO_proccess) No argv. So num_keys will be %d\n", num_keys); /* DEBUG */
 	} else {
 		num_keys = atoi(argv[1]);
 	}
@@ -271,38 +278,70 @@ int IO_proccess(char *argv[])
 		return -1;
 	}
 
+	printf("There are %d procs. Yeah\n", num_procs); /* DEBUG */
+
 	/* ======================  CREATE TABLE OF KEYS AND PROCCESSES ====================== */
 
-	if (-1 == initialice_table_of_keys(k_table, p_table, num_procs, num_keys)) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< k_table and p_table by reference!!!!!!. Is it ok?
-		fprintf(stderr, "%s\n", "IO_proccess: initialice_table_of_keys");
+	if (NULL == (k_table = (struct key_table_row *) malloc(num_keys * sizeof(struct key_table_row)))){ 
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in malloc(k_table)");
 		return -1;
 	}
+
+	if (NULL == (p_table = (struct proc_table_row *) malloc(num_procs * sizeof(struct proc_table_row)))){ 
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in malloc(p_table)");
+		return -1;
+	}
+
+	if (-1 == initialice_table_of_keys(k_table, p_table, num_procs, num_keys)) { 
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in initialice_table_of_keys");
+		return -1;
+	}
+
+	printf("Tables of keys and proccess created!!\n"); /* DEBUG */
+	printf("OLE %d!!\n", k_table[1].key_id); /* DEBUG */
 
 	/* ======================  CREATING TYPES OF MESSAGES ====================== */
 
 	if (-1 == construct_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
-		fprintf(stderr, "%s\n", "IO_proccess: construct_decrypt_msg");
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in construct_decrypt_msg");
 		return -1;
 	}
 
 	if (-1 == construct_data_msg(num_keys, &data_msg, &MPI_DATA_MSG_T)) {
-		fprintf(stderr, "%s\n", "IO_proccess: construct_data_msg");
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in construct_data_msg");
 		return -1;
 	}
+
+	printf("Data and decrypt message created in proccess 0!!\n"); /* DEBUG */
 
 	/* ======================  SENDING KEYS ====================== */
 
 	/* Find free proccesses and assign it to them */
-	while ( search_free_procs(p_table, num_procs, &proc_id) ) {
+	if (-1 == (keys_without_procs_flag = search_free_procs(p_table, num_procs, &proc_id))) {
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
+		return -1;
+	}
+
+	printf("Going to assign a key to proc [%d]\n", proc_id); /* DEBUG */
+
+	/* =========  THERE ARE KEYS LEFT TO GIVE TO THE PROCCESSES ========= */
+	while (keys_without_procs_flag) {
 
 		/* Assign a key to a proccess */
-		if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
+		if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (1)");
 			return -1;
 		}
 
 		/* Assign a key to a proccess */
-		if (0 == search_free_procs(p_table, num_procs, &proc_id) ) break; // No keys without a proccess asociated
+		if (-1 == (keys_without_procs_flag = search_free_procs(p_table, num_procs, &proc_id))) {
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
+			return -1;
+		}
+
+		if (0 == keys_without_procs_flag) break; // No keys without a proccess asociated
+
+		printf("Next proc to assign a key is  [%d]\n", proc_id); /* DEBUG */
 
 		/* Checks if there is a data message or not */
 		if (MPI_SUCCESS != MPI_Iprobe(MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &msg_received_flag, &status)) {
@@ -327,7 +366,7 @@ int IO_proccess(char *argv[])
 			/* IMprimir clave encontrada en tiempo real *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET (but this is for Samuel)
 
 			/* Assign a key to a proccess */
-			if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
+			if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (2)");
 				return -1;
 			}
@@ -335,6 +374,8 @@ int IO_proccess(char *argv[])
 
 	}
 
+
+	/* =========  NO KEYS LEFT. HELP ANOTHER PROCCESS FIND ITS KEY ========= */
 	while ( are_there_keys_not_decrypted(k_table, num_keys) ) {
 
 		/* Find free proccesses and assign it to them */
@@ -358,11 +399,11 @@ int IO_proccess(char *argv[])
 
 		key_id_rcv = data_msg.key.key_id;
 		proc_id_rcv = data_msg.proccess_id;
-		num_procs_key = k_table[key_id_rcv]->num_procs_list;
+		num_procs_key = k_table[key_id_rcv].num_procs_list;
 
 		for (i = 0; i < num_procs_key; i++) {
 
-			if (MPI_SUCCESS != MPI_Send(&request_data_msg , 1, MPI_INT, k_table[key_id_rcv]->procs[i], REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
+			if (MPI_SUCCESS != MPI_Send(&request_data_msg , 1, MPI_INT, k_table[key_id_rcv].procs[i], REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Send (2)");
 				return -1;
 			}
@@ -370,7 +411,7 @@ int IO_proccess(char *argv[])
 		
 		for (i = 0; i < num_procs_key; i++) {
 
-			if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, k_table[key_id_rcv]->procs[i], DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
+			if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, k_table[key_id_rcv].procs[i], DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv (2)");
 				return -1;
 			}
@@ -390,7 +431,7 @@ int IO_proccess(char *argv[])
 			for (i = 0; i < num_procs_key; i++) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET. I dont understand this part ¯\_(-.-)_/¯
 
 				/* Assign a key to a proccess */
-				if (-1 == assign_key_to_proccess(proc_id, k_table, num_keys, num_procs)) {
+				if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
 					fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (3)");
 					return -1;
 				}
@@ -424,7 +465,7 @@ int IO_proccess(char *argv[])
  *  Return: in case of error -1        *
  * 			Otherwise, returns 1       *
  ***************************************/
-int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int num_procs) 
+int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_table, int num_keys, int num_procs) 
 {
 	key_data_t key_to_assign;
 	key_to_assign.key_id = -1;
@@ -448,6 +489,10 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 	MPI_Request request;
 	MPI_Status status;
 
+	/* Minimum and maximum values */
+	unsigned long min_search_value = MIN;
+	unsigned long max_search_value = MAX;
+
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (-1 == proc_id) {
@@ -465,22 +510,22 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 		return -1;
 	}
 
-	if (NULL == (procs_calc = malloc(num_procs * sizeof(int)))) { 
+	if (NULL == (procs_calc = (int *) malloc(num_procs * sizeof(int)))) { 
 		fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in malloc(procs_calc)");
 		return -1;
 	}
 
-	for(i = 0; i < num_procs ; i++) procs_calc[i] = -1;//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< This could be better done
+	for(i = 0; i < num_procs ; i++) procs_calc[i] = -1;
 
+	
 	/* Although its main purpose is search keys with the less number of procceses, it also works for what we want here */
 	/* Which is finding keys with 0 proccesses asigned */
+	printf("ANtes %d\n", key_to_assign.key_id); /* DEBUG */
+	
 	keys_without_procs_flag = search_keys_with_min_num_of_procs(k_table, num_keys, &num_procs_calc, &procs_calc, &key_to_assign);
-		
-    if (-1 == procs_calc[0]) { /* DEBUG */
-		fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in proc_calc[0]");
-		return -1;
-	}
-
+	
+	printf("DEspues %d\n", key_to_assign.key_id); /* DEBUG */
+	
 	if (1 == keys_without_procs_flag) {
 
 		if (-1 == construct_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
@@ -488,18 +533,21 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 			return -1;
 		}
 
-		if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET (NO ENTIENDO QUE HAY QUE PASAR COMO MIN Y MAX VALUE A LA FUNCION)
+		if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , min_search_value, max_search_value) ) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
 			return -1;
 		}
+
+		printf("Voy a mandar la clave %s al proceso %d con max_value %ld\n", key_to_assign.cypher, proc_id, decrypt_msg.max_value);
 
 		if (MPI_SUCCESS != MPI_Send(&decrypt_msg, 1, MPI_DECRYPT_MSG_T, proc_id, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD) ) { /* VOID MESSAGE */
 			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in MPI_Send (1)");
 			return -1;
 		}
 
+
 		/* Register the proccess calculating the key */
-		if (-1 == register_proccess_key_table(proc_id, key_to_assign.key_id, k_table) ){
+		if (-1 == register_proccess_key_table(proc_id, key_to_assign.key_id, k_table, p_table) ){
 			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in register_proccess_key_table");
 			return -1;
 		}
@@ -534,7 +582,7 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int
 		/* Notify the procceses that their key is going to be calculated by a new proccess */ //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< I don´t undesrtand this part XD
 		for (i = 0; i < num_procs_calc; i++) {
 
-			if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , /* MIN VALUE */, /* MAX VALUE */) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET(NO ENTIENDO QUE HAY QUE PASAR COMO MIN Y MAX VALUE, LA FUNCION ESTA  HECHA
+			if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , min_search_value, max_search_value) ) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET(NO ENTIENDO QUE HAY QUE PASAR COMO MIN Y MAX VALUE, LA FUNCION ESTA  HECHA
 				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
 				return -1;
 			}
@@ -573,8 +621,8 @@ key_data_t key_generator(int id)
 	srand(time(NULL));
 
 	new_key.key_id = id;
-	new_key.key =  MIN + rand() % (MAX - MIN);
-	strcpy(new_key.cypher, key_encrypter(new_key.key));
+	new_key.key_number =  MIN + rand() % (MAX - MIN);
+	strcpy(new_key.cypher, key_encrypter(new_key.key_number));
 
 	return new_key;
 }
@@ -591,7 +639,7 @@ key_data_t key_generator(int id)
  ***************************************/
 char *key_encrypter(unsigned long key) 
 {
-	unsigned char* p = (unsigned char*)&key; //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< I don´t know why this is warning
+	unsigned char* p = (unsigned char*)&key; 
 	return crypt(p, "aa");
 }
 
@@ -609,20 +657,20 @@ int key_decrypter(msg_decrypt_t* msg, clock_t* end, int* key_found)
 {
 	char decrypt_string[CRYPT_LENGTH];
 	char *ptr;
-	srand(1);
-	unsigned long decypher;
 
-	sprintf(decrypt_string, "%08ld", rand() % (msg.max_value) );
+	sprintf(decrypt_string, "%08ld", rand() % (msg->max_value) );
+
+	printf("Clave random %s - Clave  %lu\n", decrypt_string, msg->key.key_number); /* DEBUG */
+
 	if (0 == strcmp(crypt(decrypt_string, "aa"), msg->key.cypher) ) {
 		*end = clock();
 		*key_found = 1;
+		msg->key.key_number = strtoul(decrypt_string, &ptr, 0);
 		printf("Encontrada: %s->%s \n", msg->key.cypher, decrypt_string);/* DEBUG */
-		decypher=strtoul(decrypt_string,&ptr,10);
-		msg->key.key=decypher;
-		return 0;
+		return 1;
 	}
 
-	return 1; //Not found
+	return 0; //Not found
 }
 
 /***************************************
@@ -635,55 +683,55 @@ int key_decrypter(msg_decrypt_t* msg, clock_t* end, int* key_found)
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int initialice_table_of_keys(key_table_t k_table[], proc_table_t p_table[], int n_proc, int num_keys) 
+int initialice_table_of_keys(key_table_t k_table, proc_table_t p_table, int n_proc, int num_keys) 
 {
 	int i, j;
 
 	/* ======================  CHECKING PARAMETERS ====================== */
 
-	if (0 == n_proc) {
-		fprintf(stderr, "%s\n", "initialice_table_of_keys: n_proc is 0");
+	if (0 >= n_proc) {
+		fprintf(stderr, "%s\n", "initialice_table_of_keys: n_proc is 0 or less");
 		return -1;
 	}
 
-	if (0 == num_keys) {
-		fprintf(stderr, "%s\n", "initialice_table_of_keys: num_keys is 0");
+	if (0 >= num_keys) {
+		fprintf(stderr, "%s\n", "initialice_table_of_keys: num_keys is 0 or less");
 		return -1;
 	}
 
 	/* KEY TABLE */
 	for (i = 0; i < num_keys; i++) {
 
-		k_table[i]->key_id = i;
-		k_table[i]->key = key_generator(i);
-		k_table[i]->decrypted_flag = 0;
-		k_table[i]->assigned_flag = 0;
-		k_table[i]->num_procs_list = 0;
+		k_table[i].key_id = i;
+		k_table[i].key = key_generator(i);
+		k_table[i].decrypted_flag = 0;
+		k_table[i].assigned_flag = 0;
+		k_table[i].num_procs_list = 0;
 
-		if (NULL == (k_table[i]->procs = malloc(n_proc * sizeof(int)))){ /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< I dont´know if this is ok*/
+		if (NULL == (k_table[i].procs = malloc(n_proc * sizeof(int)))){ 
 			fprintf(stderr, "%s\n", "initialice_table_of_keys: ERROR in malloc(procs)");
 			return -1;
 		}
 
-		for(j = 0; j < n_proc; j++) k_table[i]->procs[j] = -1; /* Ids of procceses working on that key */
+		for(j = 0; j < n_proc; j++) k_table[i].procs[j] = -1; /* Ids of procceses working on that key */
 	}
 
 	/* PROCCESSES TABLE */
-	for (i = 0; i < n_proc; i++) {
+	for (i = 0; i < (n_proc - 1) ; i++) { /* ONLY CALCULATORS */
 			
-		p_table[i]->proc_id = i;
-		p_table[i]->occupied_flag = 0;
+		p_table[i].proc_id = i + 1; /* Because proccess 0 is IO proccess. SO it starts in 1*/
+		p_table[i].occupied_flag = 0;
 
 		/* STATISTICS */
-		p_table[i]->stats.n_keys = num_keys;
-		p_table[i]->stats.n_rand_crypt_calls = 0;
+		p_table[i].stats.n_keys = num_keys;
+		p_table[i].stats.n_rand_crypt_calls = 0;
 
-		if (NULL == (p_table[i]->stats.key_proccesing_times = malloc(num_keys * sizeof(double)))){ /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< I dont´know if this is ok*/
+		if (NULL == (p_table[i].stats.key_proccesing_times = malloc(num_keys * sizeof(double)))){ 
 			fprintf(stderr, "%s\n", "initialice_table_of_keys: ERROR in malloc(key_proccesing_times)");
 			return -1;
 		}
 
-		for(j = 0; j < num_keys; j++) p_table[i]->stats.key_proccesing_times[j] = -1;
+		for(j = 0; j < num_keys; j++) p_table[i].stats.key_proccesing_times[j] = -1;
 
 	}
 
@@ -707,18 +755,18 @@ int initialice_table_of_keys(key_table_t k_table[], proc_table_t p_table[], int 
  *          returns 1                  *
  *			Otherwise, returns 0       *
  ***************************************/
-int search_free_procs(proc_table_t p_table[], int num_proc, int* proc_id) 
+int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id) 
 {	
 	/* ======================  CHECKING PARAMETERS ====================== */
 
-	if (0 == num_proc) {
-		fprintf(stderr, "%s\n", "search_free_procs: num_proc is 0");
+	if (0 >= num_proc) {
+		fprintf(stderr, "%s\n", "search_free_procs: num_proc is 0 or less");
 		return -1;
 	}
 
 	for (int i = 0 ; i < num_proc; i++) {
-		if (p_table[i]->occupied_flag == 0){ 
-			*proc_id = i;
+		if (0 == p_table[i].occupied_flag){ 
+			*proccess_id = p_table[i].proc_id;
 			return 1;
 		}
 	}
@@ -738,7 +786,7 @@ int search_free_procs(proc_table_t p_table[], int num_proc, int* proc_id)
  *          is found returns 1.        *
  *			Otherwise, returns 0       *
  ***************************************/
-int are_there_keys_not_decrypted(key_table_t k_table[], int num_keys) 
+int are_there_keys_not_decrypted(key_table_t k_table, int num_keys) 
 {
 
 	/* ======================  CHECKING PARAMETERS ====================== */
@@ -749,7 +797,7 @@ int are_there_keys_not_decrypted(key_table_t k_table[], int num_keys)
 	}
 
 	for (int i = 0; i < num_keys; i++) {
-		if (k_table[i]->decrypted_flag == 0)  
+		if (k_table[i].decrypted_flag == 0)  
 			return 1;
 	}
 
@@ -768,11 +816,12 @@ int are_there_keys_not_decrypted(key_table_t k_table[], int num_keys)
  *			is found returns 1          *
  *			Otherwise, returns 0        *
  ****************************************/
-int search_keys_with_min_num_of_procs(key_table_t k_table[], int num_keys, int* num_procs, int** procs_calc, key_data_t *key)
+int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* num_procs, int** procs_calc, key_data_t *key)
 {
 	int i = 0;
 	int key_id = -1;
-	*num_procs = k_table[0]->num_procs_list;
+	*num_procs = k_table[0].num_procs_list;
+	*key = k_table[0].key;
 
 	/* ======================  CHECKING PARAMETERS ====================== */
 
@@ -784,25 +833,32 @@ int search_keys_with_min_num_of_procs(key_table_t k_table[], int num_keys, int* 
 	for (i = 0 ; i < num_keys; i++) {
 
 		/* If there are 2 or more keys with the same number of proccesses, p.e. 0 procceses, we get the first one we picked. */
-		/* That´s why we put > and not >= */
-		if (*num_procs > k_table[i]->num_procs_list) { 
-			*num_procs = k_table[i]->num_procs_list;
-			*key = k_table[i]->key;	
+		if (*num_procs > k_table[i].num_procs_list) { /* That´s why we put > and not >= */
+			*num_procs = k_table[i].num_procs_list;
+			*key = k_table[i].key;	
 			key_id = i;
 		}
 
 	}
 
-	/* Get the list of proccesses calculating the key */
-	for (i = 0 ; i < k_table[i]->num_procs_list; i++)
-		*procs_calc[i] = k_table[key_id]->procs[i];
-		//*procs_calc = k_table[key_id].procs[i];
-		//(procs_calc)++;//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-	if (0 == (*num_procs) ) 
+	if (0 == (*num_procs) ){ /* There is at least one key with no proccesses asigned */
 		return 1;
-	else 
-		return 0;
+	} else {
+		free(*procs_calc);
+
+		if (NULL == (*procs_calc = (int *) malloc((*num_procs) * sizeof(int)))) { 
+			fprintf(stderr, "%s\n", "search_keys_with_min_num_of_procs: ERROR in malloc(procs_calc)");
+			return -1;
+		}
+
+		for(i = 0; i < (*num_procs) ; i++) (*procs_calc)[i] = -1;
+	}
+
+	/* Get the list of proccesses calculating the key */
+	for (i = 0 ; i < k_table[i].num_procs_list; i++)
+		(*procs_calc)[i] = k_table[key_id].procs[i];
+
+	return 0;
 }
 
 /***************************************
@@ -815,7 +871,7 @@ int search_keys_with_min_num_of_procs(key_table_t k_table[], int num_keys, int* 
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[])
+int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table)
 {
 	int num_procs_list = 0;
 
@@ -831,10 +887,12 @@ int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[])
 		return -1;
 	}
 
-	num_procs_list = k_table[key_id]->num_procs_list;
-	k_table[key_id]->procs[num_procs_list] = proc_id;
+	p_table[proc_id-1].occupied_flag = 1; /* A key has been asigned to him */
 
-	(k_table[key_id]->num_procs_list)++;
+	num_procs_list = k_table[key_id].num_procs_list;
+	k_table[key_id].procs[num_procs_list] = proc_id;
+
+	(k_table[key_id].num_procs_list)++;
 
 	return 1;
 }
@@ -891,7 +949,7 @@ int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 	MPI_Address(data, &memory_address[0]);
 	MPI_Address(&(data->key_id), &memory_address[1]);
 	MPI_Address(&(data->length), &memory_address[2]);
-	MPI_Address(&(data->key), &memory_address[3]);
+	MPI_Address(&(data->key_number), &memory_address[3]);
 	MPI_Address(&(data->cypher), &memory_address[4]);
 
 	memory_address_distances[0] = memory_address[1] - memory_address[0];
@@ -1098,12 +1156,12 @@ int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type)
 
 
 int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id, int num_tries, clock_t begin, clock_t end){
-data_msg->message_id=DATA_MESSAGE_TAG;
-data_msg->key=decrypt_msg->key;
-data_msg->proccess_id=proc_id;
-data_msg->num_tries=num_tries;
-data_msg->time= (double) (end-begin);
-return 1;
+	data_msg->message_id=DATA_MESSAGE_TAG;
+	data_msg->key=decrypt_msg->key;
+	data_msg->proccess_id=proc_id;
+	data_msg->num_tries=num_tries;
+	data_msg->time= (double) (end-begin);
+	return 1;
 }
 
 /***************************************
@@ -1117,13 +1175,12 @@ return 1;
  *  Return: in case of error -1        *
  			Otherwise, returns 1       *
  ***************************************/
-
-int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long max_value, unsigned long min_value){
-decrypt_msg->message_id=DECRYPT_MESSAGE_TAG;
-decrypt_msg->key=key;
-decrypt_msg->min_value=min_value;
-decrypt_msg->max_value=max_value;
-return 1;
+int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long min_value, unsigned long max_value) {
+	decrypt_msg->message_id=DECRYPT_MESSAGE_TAG;
+	decrypt_msg->key=key;
+	decrypt_msg->min_value=min_value;
+	decrypt_msg->max_value=max_value;
+	return 1;
 }
 
 
@@ -1138,15 +1195,14 @@ return 1;
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-
-int store_data(proc_table_t p_table[], msg_data_t data_msg, int num_procs){
+int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
 	int i;
 
 	for(i = 0; i < num_procs; i++){
-		if(p_table[i]->proc_id == data_msg.proccess_id){
-			p_table[i]->stats.n_keys += 1;
-			p_table[i]->stats.n_rand_crypt_calls += data_msg.num_tries;
-			p_table[i]->stats.key_proccesing_times[p_table[i]->stats.n_keys - 1] = data_msg.time;
+		if(p_table[i].proc_id == data_msg.proccess_id){
+			p_table[i].stats.n_keys += 1;
+			p_table[i].stats.n_rand_crypt_calls += data_msg.num_tries;
+			p_table[i].stats.key_proccesing_times[p_table[i].stats.n_keys - 1] = data_msg.time;
 			return 1;
 		}
 	}

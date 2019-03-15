@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <crypt.h>
 #include "mpi.h"
 
@@ -29,7 +30,7 @@
 typedef struct {
 	int key_id;								/* Id of the key */
     int length;								/* Length of the key */
-	unsigned long key;						/* Uncrypted key. Only numbers */
+	unsigned long key_number;				/* Uncrypted key. Only numbers */
 	char cypher[CRYPT_LENGTH];				/* Cyphered key . Characters + Numbers */
 } key_data_t;
 
@@ -83,10 +84,10 @@ int IO_proccess(char *argv[]);
 int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type);
 int construct_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Type); 
 int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type);
-int assign_key_to_proccess(int proc_id, key_table_t k_table[], int num_keys, int num_procs);
-int are_there_keys_not_decrypted(key_table_t k_table[], int num_keys);
-int search_free_procs(proc_table_t p_table[], int num_proc, int* proc_id);
-int search_keys_with_min_num_of_procs(key_table_t k_table[], int num_keys, int* num_proc, int** procs_calc, key_data_t *key);
+int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_table, int num_keys, int num_procs);
+int are_there_keys_not_decrypted(key_table_t k_table, int num_keys);
+int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id);
+int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* num_procs, int** procs_calc, key_data_t *key);
 
 /* KEY HANDLE FUNCTIONS */
 key_data_t key_generator(int id);
@@ -94,12 +95,11 @@ char *key_encrypter(unsigned long key);
 int key_decrypter(msg_decrypt_t *msg, clock_t* end, int* key_found);
 
 /* TABLE HANDLE FUNCTIONS */
-int initialice_table_of_keys(key_table_t k_table[], proc_table_t *p_table, int n_proc, int num_keys); 
-int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table[]);
+int initialice_table_of_keys(key_table_t k_table, proc_table_t p_table, int n_proc, int num_keys); 
+int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table);
 
 int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
-int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long max_value, unsigned long min_value);
-/* FUNCTIONS LEFT */
-int store_data(proc_table_t p_table[], msg_data_t data_msg, int num_procs);
+int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long min_value, unsigned long max_value);
+int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
 
 
