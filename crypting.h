@@ -101,6 +101,6 @@ int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table
 int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
 int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long min_value, unsigned long max_value);
 int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
-int update_proccess_and_key_data(int k_id, key_table_t k_table, proc_table_t p_table);
+int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);
 
 
