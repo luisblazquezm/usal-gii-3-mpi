@@ -175,8 +175,6 @@ int calculator_proccess(char *argv[], int proccess_id)
 				return -1;
 			}
 
-			if(flag_probe != 0) printf("flag probe es %d\n", flag_probe);
-
 			if(flag_probe != 0){
 
 				printf("------------------------> ENtro con status %d\n", status.MPI_TAG);
@@ -256,7 +254,7 @@ int IO_proccess(char *argv[])
 	/* Flags*/
 	int msg_received_flag = 0;
 	int free_procs_flag = 0;
-	int keys_without_procs_flag = 0;
+	int keys_left_flag = 0;
 
 	/* MPI stuff to create the group */
 	MPI_Group MPI_GROUP_WORLD;           
@@ -324,16 +322,14 @@ int IO_proccess(char *argv[])
 
 	/* ======================  SENDING KEYS ====================== */
 
-	/* Find free proccesses and assign it to them */
-	if (-1 == (keys_without_procs_flag = search_free_procs(p_table, num_procs, &proc_id))) {
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
-		return -1;
-	}
-
-	printf("Going to assign a key to proc [%d]\n", proc_id); /* DEBUG */
-
 	/* =========  THERE ARE KEYS LEFT TO GIVE TO THE PROCCESSES ========= */
-	while (keys_without_procs_flag) {
+	while (-1 != (keys_left_flag = are_there_keys_not_decrypted(k_table, num_keys))) {
+
+		/* Find free proccesses and assign it to them */
+		if (-1 == search_free_procs(p_table, num_procs, &proc_id)) {
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
+			return -1;
+		}
 
 		/* Assign a key to a proccess */
 		if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
@@ -341,13 +337,7 @@ int IO_proccess(char *argv[])
 			return -1;
 		}
 
-		/* Assign a key to a proccess */
-		if (-1 == (keys_without_procs_flag = search_free_procs(p_table, num_procs, &proc_id))) {
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
-			return -1;
-		}
-
-		if (0 == keys_without_procs_flag) break; // No keys without a proccess asociated
+		if (-1 == keys_left_flag) break; // No keys without a proccess asociated
 
 		printf("Next proc to assign a key is  [%d]\n", proc_id); /* DEBUG */
 
@@ -356,8 +346,6 @@ int IO_proccess(char *argv[])
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Iprobe");
 			return -1;
 		}
-
-		printf("REBIELLLO=OOOOOOOOOOOOOOO\n");
 
 		if (msg_received_flag) {
 
@@ -446,7 +434,7 @@ int IO_proccess(char *argv[])
 
 		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
 		fprintf(stderr, "Victor Manuel va a entrar en la cueva del demiurgo\n");
-		if (0 != (k_id = are_there_keys_not_decrypted(k_table, num_keys))) {
+		if (-1 != (k_id = are_there_keys_not_decrypted(k_table, num_keys))) {
 
 			num_procs_key = k_table[k_id].num_procs_list;
 
@@ -546,13 +534,9 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 
 	
 	/* Although its main purpose is search keys with the less number of procceses, it also works for what we want here */
-	/* Which is finding keys with 0 proccesses asigned */
-	printf("ANtes %d\n", key_to_assign.key_id); /* DEBUG */
-	
+	/* Which is finding keys with 0 proccesses asigned */	
 	keys_without_procs_flag = search_keys_with_min_num_of_procs(k_table, num_keys, &num_procs_calc, &procs_calc, &key_to_assign);
-	
-	printf("DEspues %d\n", key_to_assign.key_id); /* DEBUG */
-	
+		
 	if (1 == keys_without_procs_flag) {
 
 		if (-1 == construct_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
@@ -815,16 +799,16 @@ int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id)
  *                                     *
  *  Return: if a non-decrypted key     *
  *          is found returns the number*
- *			Otherwise, returns 0       *
+ *			Otherwise, returns -1       *
  ***************************************/
 int are_there_keys_not_decrypted(key_table_t k_table, int num_keys) 
 {
 
 	/* ======================  CHECKING PARAMETERS ====================== */
 
-	if (0 == num_keys) {
-		fprintf(stderr, "%s\n", "are_there_keys_not_decrypted: num_keys is 0");
-		return -1;
+	if (0 >= num_keys) {
+		fprintf(stderr, "%s\n", "are_there_keys_not_decrypted: num_keys is 0 or less");
+		return -2;
 	}
 
 	for (int i = 0; i < num_keys; i++) {
@@ -832,7 +816,7 @@ int are_there_keys_not_decrypted(key_table_t k_table, int num_keys)
 			return i;
 	}
 
-	return 0; // All the keys have been decrypted
+	return -1; // All the keys have been decrypted
 }
 
 /****************************************
