@@ -350,6 +350,8 @@ int IO_proccess(char *argv[])
 			return -1;
 		}
 
+		printf("REBIELLLO=OOOOOOOOOOOOOOO\n");
+
 		if (msg_received_flag) {
 
 			/* Data reception from the calculator proccesses */
@@ -375,6 +377,8 @@ int IO_proccess(char *argv[])
 
 	}
 
+	printf("REBIELLLO=OOOOOOOOOOOOOOO 2\n");
+
 
 	/* =========  NO KEYS LEFT. HELP ANOTHER PROCCESS FIND ITS KEY ========= */
 	while ( are_there_keys_not_decrypted(k_table, num_keys) ) {
@@ -384,11 +388,15 @@ int IO_proccess(char *argv[])
 
 		if (0 == free_procs_flag) { // No free procs
 
+			printf("Me gustan las chimichangas\n");
+
 			/* Receives the data_msg from the proccess that found the key */
 			if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
 				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv (1)");
 				return -1;
 			}
+
+			printf("Harry potter ha vuelto\n");
 
 		} 
 
@@ -623,7 +631,8 @@ key_data_t key_generator(int id)
 
 	new_key.key_id = id;
 	new_key.key_number =  MIN + rand() % (MAX - MIN);
-	strcpy(new_key.cypher, key_encrypter(new_key.key_number));
+	strcpy(new_key.cypher , key_encrypter(new_key.key_number));
+	new_key.cypher[CRYPT_LENGTH + 1] = '\0';
 	new_key.length = KEY_LENGTH;
 
 	return new_key;
@@ -641,7 +650,8 @@ key_data_t key_generator(int id)
  ***************************************/
 char *key_encrypter(unsigned long key) 
 {
-	unsigned char* p = (unsigned char*)&key; 
+	char p[KEY_LENGTH];
+	sprintf(p, "%08ld", key );
 	return crypt(p, "aa");
 }
 
@@ -660,11 +670,10 @@ int key_decrypter(msg_decrypt_t* msg, clock_t* end, int* key_found)
 	char decrypt_string[msg->key.length];
 	char *ptr;
 
-	sprintf(decrypt_string, "%ld", rand() % (msg->max_value) );
+	sprintf(decrypt_string, "%08ld", (msg->min_value + rand() % (msg->max_value - msg->min_value) ));
+	ptr = crypt(decrypt_string, "aa");
 
-	printf("Clave random %s - Clave  %lu - Clave %s\n", decrypt_string, msg->key.key_number, msg->key.cypher); /* DEBUG */
-
-	if (0 == strcmp(crypt(decrypt_string, "aa"), msg->key.cypher) ) {
+	if (0 == strcmp(ptr, msg->key.cypher) ) {
 		*end = clock();
 		*key_found = 1;
 		msg->key.key_number = strtoul(decrypt_string, &ptr, 0);

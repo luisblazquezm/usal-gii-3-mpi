@@ -7,7 +7,7 @@
 #include "mpi.h"
 
 #define MIN                           0		        /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
-#define MAX                           10		    /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
+#define MAX                           10000		    /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 
 #define N_DECRYPT_MESSAGE_ELEMENTS          4
 #define N_KEY_ELEMENTS				        4
@@ -16,7 +16,7 @@
 #define N_FINISH_EXECUTION_MESSAGE_ELEMENTS 1
 
 #define IO_PROCESS_ID                     0
-#define KEY_LENGTH                    	  2			/*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
+#define KEY_LENGTH                    	  4			/*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 #define CRYPT_LENGTH					  13
 
 #define DECRYPT_MESSAGE_TAG     		  1
