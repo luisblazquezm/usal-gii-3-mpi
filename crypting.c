@@ -104,7 +104,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if(argv[1] == NULL){
-		num_keys = 5; /* DEBUG */
+		num_keys = 2; /* DEBUG */
 		printf("(Proccess num %d) No argv. So num_keys will be %d\n", proccess_id, num_keys); /* DEBUG */
 	}else{
 		num_keys = atoi(argv[1]);
@@ -232,6 +232,7 @@ int IO_proccess(char *argv[])
 	int i = 0;
 	int num_procs = 0;
 	int proc_id = -1;
+	int k_id = -1;
 
 	key_data_t key_to_assign;
 	key_to_assign.key_id = -1;
@@ -266,7 +267,7 @@ int IO_proccess(char *argv[])
 	int num_procs_key = 0, key_id_rcv = -1, proc_id_rcv = -1;
 
 	if(argv[1] == NULL) {
-		num_keys = 5; /* DEBUG */
+		num_keys = 2; /* DEBUG */
 		printf("(IO_proccess) No argv. So num_keys will be %d\n", num_keys); /* DEBUG */
 	} else {
 		num_keys = atoi(argv[1]);
@@ -406,6 +407,11 @@ int IO_proccess(char *argv[])
 			return -1;
 		}
 
+		if (-1 == update_proccess_and_key_data(data_msg, k_table, p_table)) {
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_proccess_and_key_data");
+			return -1;
+		}
+
 		key_id_rcv = data_msg.key.key_id;
 		proc_id_rcv = data_msg.proccess_id;
 		num_procs_key = k_table[key_id_rcv].num_procs_list;
@@ -433,11 +439,14 @@ int IO_proccess(char *argv[])
 		}
 
 		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+		fprintf(stderr, "Victor Manuel va a entrar en la cueva del demiurgo\n");
+		if (0 != (k_id = are_there_keys_not_decrypted(k_table, num_keys))) {
 
-		if (are_there_keys_not_decrypted(k_table, num_keys)) {
+			num_procs_key = k_table[k_id].num_procs_list;
 
+			for (i = 0; i < num_procs_key; i++) {
 
-			for (i = 0; i < num_procs_key; i++) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET. I dont understand this part ¯\_(-.-)_/¯
+				proc_id = k_table[k_id].procs[i];
 
 				/* Assign a key to a proccess */
 				if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
@@ -556,8 +565,8 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 
 
 		/* Register the proccess calculating the key */
-		if (-1 == register_proccess_key_table(proc_id, key_to_assign.key_id, k_table, p_table) ){
-			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in register_proccess_key_table");
+		if (-1 == register_proccess_and_key_table(proc_id, key_to_assign.key_id, k_table, p_table) ){
+			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in register_proccess_and_key_table");
 			return -1;
 		}
 
@@ -776,7 +785,7 @@ int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id)
 		return -1;
 	}
 
-	for (int i = 0 ; i < num_proc; i++) {
+	for (int i = 0 ; i < (num_proc - 1); i++) {
 		printf("Tu padre cabron: %d %d\n", i, p_table[i].occupied_flag);
 		if (0 == p_table[i].occupied_flag){ 
 			*proccess_id = p_table[i].proc_id;
@@ -796,7 +805,7 @@ int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id)
  *  in the keys´ table                 *
  *                                     *
  *  Return: if a non-decrypted key     *
- *          is found returns 1.        *
+ *          is found returns the number*
  *			Otherwise, returns 0       *
  ***************************************/
 int are_there_keys_not_decrypted(key_table_t k_table, int num_keys) 
@@ -811,7 +820,7 @@ int are_there_keys_not_decrypted(key_table_t k_table, int num_keys)
 
 	for (int i = 0; i < num_keys; i++) {
 		if (k_table[i].decrypted_flag == 0)  
-			return 1;
+			return i;
 	}
 
 	return 0; // All the keys have been decrypted
@@ -875,7 +884,7 @@ int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* nu
 }
 
 /***************************************
- *  register_proccess_key_table  * 
+ *  register_proccess_and_key_table    * 
  ***************************************
  *                                     *
  *  Adds a new proccess to the list    *
@@ -884,19 +893,19 @@ int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* nu
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table)
+int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table)
 {
 	int num_procs_list = 0;
 
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (-1 == proc_id) {
-		fprintf(stderr, "%s\n", "register_proccess_key_table: key_id is -1");
+		fprintf(stderr, "%s\n", "register_proccess_and_key_table: key_id is -1");
 		return -1;
 	}
 
 	if (-1 == key_id) {
-		fprintf(stderr, "%s\n", "register_proccess_key_table: key_id is -1");
+		fprintf(stderr, "%s\n", "register_proccess_and_key_table: key_id is -1");
 		return -1;
 	}
 
@@ -908,6 +917,35 @@ int register_proccess_key_table(int proc_id, int key_id, key_table_t k_table, pr
 	(k_table[key_id].num_procs_list)++;
 
 	return 1;
+}
+
+/***************************************
+ *  update_proccess_and_key_data       * 
+ ***************************************
+ *                                     *
+ *  Adds a new proccess to the list    *
+ *	of proccess doing a specific key   *
+ *                                     *
+ *  Return: in case of error -1        *
+ *			Otherwise, returns 1       *
+ ***************************************/
+int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table)
+{
+	int n_procs_key = k_table[k_id].num_procs_list;
+	int proc_id = -1;
+
+	for (int i = 0; i < n_procs_key; i++) {
+		if (data_msg.procces_id == k_table[k_id].procs[i]) {
+			proc_id = k_table[k_id].procs[i];
+			p_table[proc_id - 1].occupied_flag = 0;
+			k_table[k_id].procs[i] = 0;
+			(k_table[k_id].num_procs_list)--;
+			k_table[k_id].decrypted_flag = 1;
+			return 1;
+		}
+	} 
+		
+	return -1;
 }
 
 /***************************************
@@ -1209,9 +1247,11 @@ int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long 
  *			Otherwise, returns 1       *
  ***************************************/
 int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
-	int i;
+	int i, n_proc;
 
-	for(i = 0; i < num_procs; i++){
+	/* This could be better done with p_table[data_msg.proccess_id - 1].proc_id to access the proccess */
+
+	for(i = 0; i < (num_procs - 1) ; i++){
 		if(p_table[i].proc_id == data_msg.proccess_id){
 			p_table[i].stats.n_keys += 1;
 			p_table[i].stats.n_rand_crypt_calls += data_msg.num_tries;
@@ -1222,4 +1262,6 @@ int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
 
 	return -1;
 }
+
+
 
