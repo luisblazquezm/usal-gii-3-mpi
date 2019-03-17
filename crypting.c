@@ -299,6 +299,7 @@ int IO_proccess(char *argv[])
 
 	printf("Tables of keys and proccess created!!\n"); /* DEBUG */
 	printf("OLE %d!!\n", k_table[1].key_id); /* DEBUG */
+	printf("OLE tu, %d %d\n", p_table[0].occupied_flag, p_table[1].occupied_flag);
 
 	/* ======================  CREATING TYPES OF MESSAGES ====================== */
 
@@ -623,6 +624,7 @@ key_data_t key_generator(int id)
 	new_key.key_id = id;
 	new_key.key_number =  MIN + rand() % (MAX - MIN);
 	strcpy(new_key.cypher, key_encrypter(new_key.key_number));
+	new_key.length = KEY_LENGTH;
 
 	return new_key;
 }
@@ -655,12 +657,12 @@ char *key_encrypter(unsigned long key)
  ***************************************/
 int key_decrypter(msg_decrypt_t* msg, clock_t* end, int* key_found)
 {
-	char decrypt_string[CRYPT_LENGTH];
+	char decrypt_string[msg->key.length];
 	char *ptr;
 
-	sprintf(decrypt_string, "%08ld", rand() % (msg->max_value) );
+	sprintf(decrypt_string, "%ld", rand() % (msg->max_value) );
 
-	printf("Clave random %s - Clave  %lu\n", decrypt_string, msg->key.key_number); /* DEBUG */
+	printf("Clave random %s - Clave  %lu - Clave %s\n", decrypt_string, msg->key.key_number, msg->key.cypher); /* DEBUG */
 
 	if (0 == strcmp(crypt(decrypt_string, "aa"), msg->key.cypher) ) {
 		*end = clock();
@@ -716,6 +718,7 @@ int initialice_table_of_keys(key_table_t k_table, proc_table_t p_table, int n_pr
 		for(j = 0; j < n_proc; j++) k_table[i].procs[j] = -1; /* Ids of procceses working on that key */
 	}
 
+
 	/* PROCCESSES TABLE */
 	for (i = 0; i < (n_proc - 1) ; i++) { /* ONLY CALCULATORS */
 			
@@ -765,6 +768,7 @@ int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id)
 	}
 
 	for (int i = 0 ; i < num_proc; i++) {
+		printf("Tu padre cabron: %d %d\n", i, p_table[i].occupied_flag);
 		if (0 == p_table[i].occupied_flag){ 
 			*proccess_id = p_table[i].proc_id;
 			return 1;
@@ -1165,12 +1169,12 @@ int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id,
 }
 
 /***************************************
- * fill_decrypt_msg               * 
+ * fill_decrypt_msg                    * 
  ***************************************
  *                                     *
  *  Fills the data_msg_t we'll send    *
- *     
- *                     
+ *                                     *
+ *                                     *
  *                                     *
  *  Return: in case of error -1        *
  			Otherwise, returns 1       *
