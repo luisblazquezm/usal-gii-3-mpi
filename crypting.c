@@ -59,6 +59,8 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 
+		fprintf(stderr," ¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡HE TERMINADOOOOOOO!!!!!!!!!!!!\n");
+
 	MPI_Finalize();
 
 	return 0;
@@ -129,7 +131,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 	/* ======================  DECRYPTING / SENDING AND RECEIVING ====================== */
 
-	srand(1);
+	srand(time(NULL));
 
 	do{
 
@@ -173,7 +175,11 @@ int calculator_proccess(char *argv[], int proccess_id)
 				return -1;
 			}
 
+			if(flag_probe != 0) printf("flag probe es %d\n", flag_probe);
+
 			if(flag_probe != 0){
+
+				printf("------------------------> ENtro con status %d\n", status.MPI_TAG);
 
 				switch(status.MPI_TAG) {
 
@@ -462,14 +468,17 @@ int IO_proccess(char *argv[])
 
 	}
 
+	printf("TERMINOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n");
+
 	/* Finalize execution. Sending kill message to the proccesses */
 	if (MPI_SUCCESS != MPI_Bcast(&finish_exec_msg , 1, MPI_INT, IO_PROCESS_ID, MPI_COMM_WORLD) ) {
 		fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Bcast");
 		return -1;
 	}
-	
 
 	/* SHOW STATISTICS and all that stuff *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
+
+	return 1;
 }
 
 /***************************************
@@ -931,11 +940,12 @@ int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table
  ***************************************/
 int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table)
 {
+	int k_id = -1;
 	int n_procs_key = k_table[k_id].num_procs_list;
 	int proc_id = -1;
 
 	for (int i = 0; i < n_procs_key; i++) {
-		if (data_msg.procces_id == k_table[k_id].procs[i]) {
+		if (data_msg.proccess_id == k_table[k_id].procs[i]) {
 			proc_id = k_table[k_id].procs[i];
 			p_table[proc_id - 1].occupied_flag = 0;
 			k_table[k_id].procs[i] = 0;
