@@ -17,7 +17,7 @@
  *************************************************/
 
 #include "crypting.h"
-
+#include <stdarg.h>
 /*
  * =================== SPECIAL COMMENTS ===================
  *
@@ -35,7 +35,7 @@
  */
 
 int main(int argc, char *argv[]) 
-{
+{    
 	MPI_Init(&argc, &argv);
 
 		int id = -1;
@@ -45,7 +45,6 @@ int main(int argc, char *argv[])
 		}
 
 		printf("Hello, I am proccess nº %d\n", id); /* DEBUG */
-		//printf("Pin pan trucu trucu %s\n", argv[1]); /* DEBUG */
 
 		if (id == 0) {
 			if (-1 == IO_proccess(argv)) {
@@ -53,6 +52,8 @@ int main(int argc, char *argv[])
 				return -1;
 			}
 		}
+		
+		printf("WTF");
 
 		if (-1 == calculator_proccess(argv, id)) {
 			fprintf(stderr, "%s\n", "main: ERROR in calculator_proccess");
@@ -119,21 +120,24 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 	/* ======================  CREATING TYPES OF MESSAGES ====================== */
 
-	if (-1 == register_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
-		fprintf(stderr, "%s\n", "calculator_proccess: register_decrypt_msg");
+	if (-1 == construct_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
+		fprintf(stderr, "%s\n", "calculator_proccess: construct_decrypt_msg");
 		return -1;
 	}
 
-	if (-1 == register_data_msg(num_keys, &data_msg, &MPI_DATA_MSG_T)) {
-		fprintf(stderr, "%s\n", "calculator_proccess: register_data_msg");
+	if (-1 == construct_data_msg(num_keys, &data_msg, &MPI_DATA_MSG_T)) {
+		fprintf(stderr, "%s\n", "calculator_proccess: construct_data_msg");
 		return -1;
 	}
 
 	/* ======================  DECRYPTING / SENDING AND RECEIVING ====================== */
+	
+	debug_msg_printf("Process %d alive. Waiting orders...\n", proccess_id); /* DEBUG */
 
 	srand(time(NULL)); //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Seed of the proccess ??????????
 
 	do{
+	    debug_msg_printf("Process %d gonna wait for some key.\n", proccess_id); /* DEBUG */
 
 		if (MPI_SUCCESS != MPI_Recv(&decrypt_msg , 1, MPI_DECRYPT_MSG_T, IO_PROCESS_ID, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
 			fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Recv (1)");
@@ -142,7 +146,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 		decrypt_msg.key.cypher[CRYPT_LENGTH] = '\0'; // It seemed not working without this
 
-		fprintf(stderr,"Message received from proccess 0 containing key [%s]\n", decrypt_msg.key.cypher); /* DEBUG */
+		debug_msg_printf("Message received from proccess 0 containing key [%s]\n", decrypt_msg.key.cypher); /* DEBUG */
 
 		/* Beggining search of key */
 		begin = clock();
@@ -226,17 +230,72 @@ int calculator_proccess(char *argv[], int proccess_id)
 /**************************************************
  *  1) Generate random keys                       *
  *  2) Encrypt the keys                           *
- *  3) registers the type of MPI for structs     *
+ *  3) Constructs the type of MPI for structs     *
  *  3) Send the keys to calculator proccesses     *
  **************************************************/
 int IO_proccess(char *argv[]) 
 {
+    /*
+    PROCEDURE Proceso_central {
+    
+        ...
+        
+        WHILE (Claves sin procesos asociados) {
+            
+            IF (Hay_procesos_libres) {
+                p ← Seleccionar_proceso_libre()
+                Asignar_clave(p)
+                IF (No quedan claves sin procesos asociados)
+                    BREAK; // NO quedan claves libres
+                Mensaje ← Recibir_mensaje_no_bloqueante()
+            } ELSE {
+                Mensaje ← Recibir_mensaje_bloqueante()
+            }
+            
+            IF (Hay mensaje) { // Solo puede ser de datos y debido a clave encontrada
+                Guardar_datos(Mensaje)
+                Asignar _clave(Mensaje.proceso)
+            }
+        }
+        
+        WHILE (Queden claves) { // Este bucle WHILE creo que es muy optimizable en el reparto de
+                                // tareas
+                                
+            IF (No hay procesos libres)
+                Mensaje ← Recibir_mensaje_bloqueante()  // Solo puede ser de datos y
+                                                        // debido a clave encontrada
+            Datos ← Guardar_datos(Mensaje)
+            
+            FOR p IN procesos_calculando_clave_encontrada {
+                Enviar_mensaje_solicitud_datos(q)
+            }
+            
+            FOR n IN numero_de_procesos_calculando_clave {
+                Datos ← Recibir_respuesta_bloqueante()
+            }
+            
+            IF (Quedan claves) {
+                FOR p IN procesos_calculando_clave_encontrada
+                    Asignar _clave(p)
+            } ELSE
+                BREAK; // NO quedan claves
+            }
+            
+            FOR p IN procesos_calculadores_en_el_sistema
+                Enviar_mensaje_finalizar_ejecucion()
+                
+            // Cálculos finalizados. Falta mostrar estadísticas, etc.
+        }
+    */
+
+
 	int num_keys = 0;
 	int i = 0;
 	int num_procs = 0;
 	int proc_id = -1;
 	int k_id = -1;
 	int key_left_id = -1;
+	int tmp;
 
 	key_data_t key_to_assign;
 	key_to_assign.key_id = -1;
@@ -304,49 +363,76 @@ int IO_proccess(char *argv[])
 
 	/* ======================  CREATING TYPES OF MESSAGES ====================== */
 
-	if (-1 == register_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in register_decrypt_msg");
+	if (-1 == construct_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in construct_decrypt_msg");
 		return -1;
 	}
 
-	if (-1 == register_data_msg(num_keys, &data_msg, &MPI_DATA_MSG_T)) {
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in register_data_msg");
+	if (-1 == construct_data_msg(num_keys, &data_msg, &MPI_DATA_MSG_T)) {
+		fprintf(stderr, "%s\n", "IO_proccess: ERROR in construct_data_msg");
 		return -1;
 	}
 
 	printf("Data and decrypt message created in proccess 0!!\n"); /* DEBUG */
 
 	/* ======================  SENDING KEYS ====================== */
+	
+	debug_msg_printf("%s", "I/O process alive. Gonna send sum keys, ma homie!\n"); /* DEBUG */
 
 	/* ============================================  THERE ARE KEYS LEFT TO GIVE TO THE PROCCESSES ============================================ */
 	while (-1 != (key_left_id = are_there_keys_not_decrypted(k_table, num_keys))) {
+	
+	    /*
+	    WHILE (Claves sin procesos asociados) {
+            
+            IF (Hay_procesos_libres) {
+                p ← Seleccionar_proceso_libre()
+                Asignar_clave(p)
+                IF (No quedan claves sin procesos asociados)
+                    BREAK; // NO quedan claves libres
+                Mensaje ← Recibir_mensaje_no_bloqueante()
+            } ELSE {
+                Mensaje ← Recibir_mensaje_bloqueante()
+            }
+            
+            IF (Hay mensaje) { // Solo puede ser de datos y debido a clave encontrada
+                Guardar_datos(Mensajempirun -np [numProcesos] crypt [arguments])
+                Asignar _clave(Mensaje.proceso)
+            }
+        }
+	    */
 
 		/* Find free proccesses and assign it to them */
-		if (-1 == search_free_procs(p_table, num_procs, &proc_id)) {
+		tmp = search_free_procs(p_table, num_procs, &proc_id);
+		if (-1 == tmp) {
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
 			return -1;
+		} else if (0 == tmp){ // There are not any free processes
+		
+		    printf("Process 0 waiting for process 1 to finish\n"); /* DEBUG */
+		
+		    /* Data reception from the calculator proccesses */
+		    if (MPI_SUCCESS != MPI_Recv(&data_msg, 1, MPI_DATA_MSG_T, proc_id, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
+			    fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv");
+			    return -1;
+		    }
+		} else if (1 == tmp){ // There are free processes
+		    
+		    /* Assign a key to a proccess */
+		    if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
+			    fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (1)");
+			    return -1;
+		    }
+		    
+		    if (-1 == key_left_id) break; // No keys without a proccess asociated
+		    
+		    /* Data reception from the calculator proccesses */
+		    if (MPI_SUCCESS != MPI_Irecv(&data_msg, 1, MPI_DATA_MSG_T, proc_id, DATA_MESSAGE_TAG, MPI_COMM_WORLD, NULL) ) {
+				fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
+				return -1;
+			}
 		}
-
-		/* Assign a key to a proccess */
-		if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (1)");
-			return -1;
-		}
-
-		printf("HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEERE %d\n", p_table[0].occupied_flag);
-
-		if (-1 == key_left_id) break; // No keys without a proccess asociated
-
-		printf("(%d keys) Next key left is [%s] to proc [%d]\n", num_keys, k_table[key_left_id].key.cypher, proc_id); /* DEBUG */
-
-		/* Data reception from the calculator proccesses */
-		if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, proc_id, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv");
-			return -1;
-		}
-
-		printf("Message received from proc [%d]\n", proc_id); /* DEBUG */
-
+		
 		/* Store data from the data message received */
 		if (-1 == store_data(p_table, data_msg, num_procs) ){
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (1)");
@@ -358,98 +444,10 @@ int IO_proccess(char *argv[])
 			return -1;
 		}
 
-		fprintf(stderr,"(PRoceso %d) ENCONTRADA clave %s con %lu intentos en %f segundos\n", data_msg.proccess_id, data_msg.key.cypher, data_msg.num_tries, data_msg.time); /* DEBUG */
-		
-	}
-
-	printf("NO MORE KEYS LEFT. LETS GO TO THE SECOND LOOP\n"); /* DEBUG */
-
-	/* ============================================  NO KEYS LEFT. HELP ANOTHER PROCCESS FIND ITS KEY ============================================ */
-	while ( are_there_keys_not_decrypted(k_table, num_keys) ) {
-
-		/* Find free proccesses and assign it to them */
-		free_procs_flag = search_free_procs(p_table, num_procs, &proc_id); 
-
-		if (0 == free_procs_flag) { // No free procs
-
-			/* Receives the data_msg from the proccess that found the key */
-			if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
-				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv (1)");
-				return -1;
-			}
-
-		} 
-
-		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-		if (-1 == store_data(p_table, data_msg, num_procs) ){
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (2)");
-			return -1;
-		}
-
-		if (-1 == update_proccess_and_key_data(data_msg, k_table, p_table)) {
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_proccess_and_key_data");
-			return -1;
-		}
-
-		key_id_rcv = data_msg.key.key_id;
-		proc_id_rcv = data_msg.proccess_id;
-		num_procs_key = k_table[key_id_rcv].num_procs_list;
-
-		for (i = 0; i < num_procs_key; i++) {
-
-			if (MPI_SUCCESS != MPI_Send(&request_data_msg , 1, MPI_INT, k_table[key_id_rcv].procs[i], REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
-				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Send (2)");
-				return -1;
-			}
-		}
-		
-		for (i = 0; i < num_procs_key; i++) {
-
-			if (MPI_SUCCESS != MPI_Recv(&data_msg , 1, MPI_DATA_MSG_T, k_table[key_id_rcv].procs[i], DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
-				fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Recv (2)");
-				return -1;
-			}
-
-			if (-1 == store_data(p_table, data_msg, num_procs) ){
-				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (3)");
-				return -1;
-			}
-
-		}
-
-		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-		if (-1 != (k_id = are_there_keys_not_decrypted(k_table, num_keys))) {
-
-			num_procs_key = k_table[k_id].num_procs_list;
-
-			for (i = 0; i < num_procs_key; i++) {
-
-				proc_id = k_table[k_id].procs[i];
-
-				/* Assign a key to a proccess */
-				if (-1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
-					fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (3)");
-					return -1;
-				}
-			}
-
-		} else {
-			break; // There are no keys left to be decrypted
-		}
-
+		fprintf(stderr,"(Proceso %d) ENCONTRADA clave %s con %lu intentos en %f segundos\n", data_msg.proccess_id, data_msg.key.cypher, data_msg.num_tries, data_msg.time); /* DEBUG */
 
 	}
-
-	printf("TERMINOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n");
-
-	/* Finalize execution. Sending kill message to the proccesses */
-	if (MPI_SUCCESS != MPI_Bcast(&finish_exec_msg , 1, MPI_INT, IO_PROCESS_ID, MPI_COMM_WORLD) ) {
-		fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Bcast");
-		return -1;
-	}
-
-	/* SHOW STATISTICS and all that stuff *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-
+	
 	return 1;
 }
 
@@ -523,14 +521,19 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 		
 	if (1 == keys_without_procs_flag) {
 
-		if (-1 == register_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
-			fprintf(stderr, "%s\n", "assign_key_to_proccess: register_decrypt_msg");
+		if (-1 == construct_decrypt_msg(num_keys, &decrypt_msg, &MPI_DECRYPT_MSG_T)) {
+			fprintf(stderr, "%s\n", "assign_key_to_proccess: construct_decrypt_msg");
 			return -1;
 		}
 
 		if (-1 == fill_decrypt_msg(&decrypt_msg, key_to_assign , min_search_value, max_search_value) ) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Min and max values must change when a proccess is going to help another one. So it does not start searching from the beggining
-			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in fill_data_msg (1)");
+		    /*
+			fprintf(stderr, "%s\n", "assign_1 == assign_key_to_proccess(proc_id, k_table, p_table, num_keys, num_procs)) {
+			    fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (1)");
+			    return -1;
+		    }key_to_proccess: ERROR in fill_data_msg (1)");
 			return -1;
+			*/
 		}
 
 		printf("Voy a mandar la clave %s al proceso %d con max_value %ld\n", key_to_assign.cypher, proc_id, decrypt_msg.max_value); /* DEBUG */
@@ -753,7 +756,8 @@ int initialice_table_of_keys(key_table_t k_table, proc_table_t p_table, int n_pr
  *			Otherwise, returns 0       *
  ***************************************/
 int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id) 
-{	
+{
+    int i;
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (0 >= num_proc) {
@@ -762,15 +766,15 @@ int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id)
 	}
 
 	/* It´s n - 1 because we don´t count IO_Proccess on the table. Only calculators  */
-	for (int i = 0 ; i < (num_proc - 1); i++) { 
+	for (i = 0 ; i < (num_proc - 1); i++) { 
 		printf("Proc number %d is occupied?: %d\n", i, p_table[i].occupied_flag); /* DEBUG */
 		if (0 == p_table[i].occupied_flag){ 
 			*proccess_id = p_table[i].proc_id;
-			return 0;
+			return 1;
 		}
 	}
 
-	return 1; // All the proccesses are occupied
+	return 0; // All the proccesses are occupied
 }
 
 /***************************************
@@ -787,15 +791,12 @@ int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id)
  ***************************************/
 int are_there_keys_not_decrypted(key_table_t k_table, int num_keys) 
 {
-    int i;    
-    
+    int i;
+
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (0 >= num_keys) {
 		fprintf(stderr, "%s\n", "are_there_keys_not_decrypted: num_keys is 0 or less");
-		return -2;
-	} else if (NULL == k_table) {
-	    fprintf(stderr, "%s\n", "are_there_keys_not_decrypted: k_table cannot be NULL");
 		return -2;
 	}
 
@@ -913,11 +914,12 @@ int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table
  ***************************************/
 int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table)
 {
+    int i;
 	int k_id = data_msg.key.key_id;
 	int n_procs_key = k_table[k_id].num_procs_list;
 	int proc_id = -1;
 
-	for (int i = 0; i < n_procs_key; i++) {
+	for (i = 0; i < n_procs_key; i++) {
 		if (data_msg.proccess_id == k_table[k_id].procs[i]) {
 			proc_id = k_table[k_id].procs[i];
 			p_table[proc_id - 1].occupied_flag = 0;
@@ -932,7 +934,7 @@ int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_
 }
 
 /***************************************
- *  register_type_msg                 * 
+ *  construct_type_msg                 * 
  ***************************************
  *                                     *
  *  Generates the struct containing    *
@@ -942,7 +944,7 @@ int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int register_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type) 
+int construct_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type) 
 {
 	MPI_Datatype types[N_KEY_ELEMENTS];
 	int lengths[N_KEY_ELEMENTS];
@@ -952,7 +954,7 @@ int register_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (0 == num_keys) {
-		fprintf(stderr, "%s\n", "register_key_type: num_keys is 0");
+		fprintf(stderr, "%s\n", "construct_key_type: num_keys is 0");
 		return -1;
 	}
 
@@ -993,13 +995,13 @@ int register_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 
 	/* Create struct in MPI */
 	if (MPI_SUCCESS != MPI_Type_struct(N_KEY_ELEMENTS, lengths, memory_address_distances, types, MPI_Type) ) {
-		fprintf(stderr, "%s\n", "register_key_type: ERROR in MPI_Type_struct");
+		fprintf(stderr, "%s\n", "construct_key_type: ERROR in MPI_Type_struct");
 		return -1;
 	}
 
 	/* Certificate the struct called pMPI_new_data_type before being used */
 	if (MPI_SUCCESS != MPI_Type_commit(MPI_Type) ) {
-		fprintf(stderr, "%s\n", "register_key_type: ERROR in MPI_Type_Commit (2)");
+		fprintf(stderr, "%s\n", "construct_key_type: ERROR in MPI_Type_Commit (2)");
 		return -1;
 	}
 
@@ -1007,7 +1009,7 @@ int register_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
 }
 
 /***************************************
- *  register_decrypt_msg              * 
+ *  construct_decrypt_msg              * 
  ***************************************
  *                                     *
  *  Generates the struct containing    *
@@ -1017,7 +1019,7 @@ int register_key_type(int num_keys, key_data_t* data, MPI_Datatype* MPI_Type)
  *  Return: in case of error -1        *
  			Otherwise, returns 1       *
  ***************************************/
-int register_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Type)  
+int construct_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Type)  
 {
 	MPI_Datatype types[N_DECRYPT_MESSAGE_ELEMENTS];
 	int lengths[N_DECRYPT_MESSAGE_ELEMENTS];
@@ -1029,13 +1031,13 @@ int register_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Ty
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (0 == num_keys) {
-		fprintf(stderr, "%s\n", "register_decrypt_msg: num_keys is 0");
+		fprintf(stderr, "%s\n", "construct_decrypt_msg: num_keys is 0");
 		return -1;
 	}
 
-	/* registerS pMPI_KEY_T */
-	if (-1 == register_key_type(num_keys, &(data->key), &MPI_KEY_T)) {
-		fprintf(stderr, "%s\n", "register_decrypt_msg: ERROR in register_key_type");
+	/* CONSTRUCTS pMPI_KEY_T */
+	if (-1 == construct_key_type(num_keys, &(data->key), &MPI_KEY_T)) {
+		fprintf(stderr, "%s\n", "construct_decrypt_msg: ERROR in construct_key_type");
 		return -1;
 	}
 
@@ -1075,13 +1077,13 @@ int register_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Ty
 
 	/* Create struct in MPI */
 	if (MPI_SUCCESS != MPI_Type_struct(N_DECRYPT_MESSAGE_ELEMENTS, lengths, memory_address_distances, types, MPI_Type) ) {
-		fprintf(stderr, "%s\n", "register_decrypt_msg: ERROR in MPI_Type_struct");
+		fprintf(stderr, "%s\n", "construct_decrypt_msg: ERROR in MPI_Type_struct");
 		return -1;
 	}
 
 	/* Certificate the struct called pMPI_new_data_type before being used */
 	if (MPI_SUCCESS != MPI_Type_commit(MPI_Type) ) {
-		fprintf(stderr, "%s\n", "register_decrypt_msg: ERROR in MPI_Type_Commit");
+		fprintf(stderr, "%s\n", "construct_decrypt_msg: ERROR in MPI_Type_Commit");
 		return -1;
 	}
 
@@ -1089,7 +1091,7 @@ int register_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Ty
 }
 
 /***************************************
- *  register_data_msg                 * 
+ *  construct_data_msg                 * 
  ***************************************
  *                                     *
  *  Generates the struct containing    *
@@ -1099,7 +1101,7 @@ int register_decrypt_msg(int num_keys, msg_decrypt_t* data, MPI_Datatype* MPI_Ty
  *  Return: in case of error -1        *
  			Otherwise, returns 1       *
  ***************************************/
-int register_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type) 
+int construct_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type) 
 {
 	MPI_Datatype types[N_DATA_MESSAGE_ELEMENTS];
 	int lengths[N_DATA_MESSAGE_ELEMENTS];
@@ -1111,13 +1113,13 @@ int register_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type)
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (0 == num_keys) {
-		fprintf(stderr, "%s\n", "register_data_msg: num_keys is 0");
+		fprintf(stderr, "%s\n", "construct_data_msg: num_keys is 0");
 		return -1;
 	}
 
-	/* registerS pMPI_KEY_T */
-	if (-1 == register_key_type(num_keys, &(data->key), &MPI_KEY_T)) {
-		fprintf(stderr, "%s\n", "register_data_msg: ERROR in register_key_type");
+	/* CONSTRUCTS pMPI_KEY_T */
+	if (-1 == construct_key_type(num_keys, &(data->key), &MPI_KEY_T)) {
+		fprintf(stderr, "%s\n", "construct_data_msg: ERROR in construct_key_type");
 		return -1;
 	}
 
@@ -1162,13 +1164,13 @@ int register_data_msg(int num_keys, msg_data_t* data, MPI_Datatype* MPI_Type)
 
 	/* Create struct in MPI */
 	if (MPI_SUCCESS != MPI_Type_struct(N_DATA_MESSAGE_ELEMENTS, lengths, memory_address_distances, types, MPI_Type) ) {
-		fprintf(stderr, "%s\n", "register_data_msg: ERROR in MPI_Type_struct");
+		fprintf(stderr, "%s\n", "construct_data_msg: ERROR in MPI_Type_struct");
 		return -1;
 	}
 
 	/* Certificate the struct called pMPI_new_data_type before being used */
 	if (MPI_SUCCESS != MPI_Type_commit(MPI_Type) ) {
-		fprintf(stderr, "%s\n", "register_data_msg: ERROR in MPI_Type_Commit");
+		fprintf(stderr, "%s\n", "construct_data_msg: ERROR in MPI_Type_Commit");
 		return -1;
 	}
 
@@ -1230,18 +1232,44 @@ int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long 
  *			Otherwise, returns 1       *
  ***************************************/
 int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
-	
-	int n_proc;
-	
-	n_proc = data_msg.proccess_id - 1;
-	if (0 <= n_proc && n_proc < num_procs) {
-	    p_table[n_proc].stats.n_keys += 1;
-		p_table[n_proc].stats.n_rand_crypt_calls += data_msg.num_tries;
-		p_table[n_proc].stats.key_proccesing_times[p_table[n_proc].stats.n_keys - 1] = data_msg.time;
-		return 1;
-	} else {
-	    return -1;
+	int i, n_proc;
+
+	/* This could be better done with p_table[data_msg.proccess_id - 1].proc_id to access the proccess directly but alberto did it like this. */
+
+	for(i = 0; i < (num_procs - 1) ; i++){
+		if(p_table[i].proc_id == data_msg.proccess_id){
+			p_table[i].stats.n_keys += 1;
+			p_table[i].stats.n_rand_crypt_calls += data_msg.num_tries;
+			p_table[i].stats.key_proccesing_times[p_table[i].stats.n_keys - 1] = data_msg.time;
+			return 1;
+		}
 	}
+
+	return -1;
+}
+
+int debug_msg_printf(const char *format, ...) {
+
+    char filename[] = "debug.log";
+    FILE *fp = NULL;
+    va_list args;
+    
+    fp = fopen(filename, "a");
+    if (NULL == fp) {
+        perror("debug_msg_printf: fopen");
+        return -1;
+    }
+    
+    va_start(args, format);
+    vfprintf(fp, format, args);
+    va_end(args);
+    
+    if (0 != fclose(fp)) {
+        perror("debug_msg_printf: fclose");
+        return -1;
+    }
+        
+    return 0;
 }
 
 
