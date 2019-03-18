@@ -253,7 +253,8 @@ int IO_proccess(char *argv[])
 		return -1;
 	}
 	
-	/* DEBUG */
+	/* DEBUG *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	/*
 	int _nprocs;
 	int _procs[100];
 	key_data_t key;
@@ -261,7 +262,28 @@ int IO_proccess(char *argv[])
 	
 	print_key_table(k_table, num_keys);
 	printf("\n\nKey ID: %d | Num procs: %d\n", key.key_id, _nprocs);
+
+	data_msg.proccess_id = 1;
+	data_msg.key.key_id = key.key_id;
+	data_msg.key.key_number = key.key_number;
+	strcpy(data_msg.key.cypher, key.cypher);
+	data_msg.time = 45000.00;
+	data_msg.num_tries = 30000000000000000;
+
+	print_proc_table(p_table, num_procs - 1);
+	store_data(p_table, data_msg, num_procs);
+	print_proc_table(p_table, num_procs - 1);
+
+	printf("\n\n\n================== BEFORE ==================\n");
+	print_key_table(k_table, num_keys);
+	print_proc_table(p_table, num_procs - 1);
+	register_proccess_and_key_table(1, key.key_id, k_table, p_table);
+	printf("\n\n\n================== AFTER ==================\n");
+	print_key_table(k_table, num_keys);
+	print_proc_table(p_table, num_procs - 1);
+
 	exit(1);
+	*/
 	/* END OF DEBUG */
 	
 	/* ======================  SENDING KEYS ====================== */
@@ -297,6 +319,7 @@ int IO_proccess(char *argv[])
 	
 	    /* Find free proccesses and assign it to them */
 	    free_procs_flag = search_free_procs(p_table, num_procs, &proc_id);
+
 	    /*
 		if (-1 == free_procs_flag) { // Error
 			fprintf(stderr, "%s\n", "IO_proccess: ERROR in search_free_procs");
@@ -332,7 +355,7 @@ int IO_proccess(char *argv[])
 int print_key_table(key_table_t key_table, int nkeys) {
     
     int i;
-    char format[] = "ID: %d | Cipher: %s | Key: %lu | Decrypted: %s | Assigned: %s\n";
+    char format[] = "ID: %d | Cipher: %s | Key: %lu | Decrypted: %s | Assigned: %s | NumProcsAssigned %d\n";
     
     if (NULL == key_table || nkeys < 0)
         return -1;
@@ -344,7 +367,8 @@ int print_key_table(key_table_t key_table, int nkeys) {
                 key_table[i].key.cypher,
                 key_table[i].key.key_number,
                 key_table[i].decrypted_flag ? "TRUE" : "FALSE",
-                key_table[i].assigned_flag ? "TRUE" : "FALSE"
+                key_table[i].assigned_flag ? "TRUE" : "FALSE",
+                key_table[i].num_procs_list
         );
     }
     
@@ -354,7 +378,7 @@ int print_key_table(key_table_t key_table, int nkeys) {
 int print_proc_table(proc_table_t proc_table, int nprocs) {
 
     int i;
-    char format[] = "Proc_id: %d | Occupied: %s | Keys found: %d | Calls to rand/crypt: %d\n";
+    char format[] = "Proc_id: %d | Occupied: %s | Keys found: %d | Calls to rand/crypt: %lu\n";
     
     if (NULL == proc_table || nprocs < 0)
         return -1;
