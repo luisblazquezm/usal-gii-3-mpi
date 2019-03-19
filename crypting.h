@@ -16,6 +16,8 @@
 #define N_FINISH_EXECUTION_MESSAGE_ELEMENTS 1
 
 #define IO_PROCESS_ID                     0
+#define NULL_PROC_ID                     -1
+
 #define KEY_LENGTH                    	  4			/*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 #define CRYPT_LENGTH					  14        /* OMG you fucked here: it's 13 + 1 */
 
@@ -23,6 +25,30 @@
 #define DATA_MESSAGE_TAG                  2
 #define REQUEST_DATA_MESSAGE_TAG 		  3
 #define FINISH_EXECUTION_MESSAGE_TAG 	  4
+
+#define return_value_print(x){\
+            switch(x) {\
+                case ERROR_1: printf("%s\n", "Error 1"); break;\
+                case ERROR_2: printf("%s\n", "Error 2"); break;\
+                case ERROR_3: printf("%s\n", "Error 3"); break;\
+                case ERROR_4: printf("%s\n", "Error 4"); break;\
+                case ERROR_5: printf("%s\n", "Error 5"); break;\
+                case KEYS_LEFT: printf("%s\n", "Keys left"); break;\
+                case NO_KEYS_LEFT: printf("%s\n", "No keys left"); break;\
+            }\
+        }
+
+
+// Functions' return values' macros
+#define KEYS_LEFT               -10
+#define NO_KEYS_LEFT            -11
+
+#define SUCCESS                 -128
+#define ERROR_1                 -129
+#define ERROR_2                 -130
+#define ERROR_3                 -131
+#define ERROR_4                 -132
+#define ERROR_5                 -133
 
 /* Debug */
 #define DEFAULT_NUM_KEYS 10
@@ -74,7 +100,6 @@ struct key_table_row {
 	int *procs;								/* List of proccesses working on the key */
 	int num_procs_list;						/* Number of proccesses working on the key */
 	int decrypted_flag;						/* Indicates if the key has already been found or not */
-	int assigned_flag;
 };
 
 
