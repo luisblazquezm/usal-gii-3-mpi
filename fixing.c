@@ -76,17 +76,17 @@ int main(int argc, char *argv[])
 		}
 
 		if (id == 0) {
-			if (-1 == IO_proccess(argv)) {
+			if (IO_proccess(argv) < 0) {
 				fprintf(stderr, "%s\n", "main: ERROR in IO_proccess");
 				return -1;
 			}
+		} else {
+		    if (-1 == calculator_proccess(argv, id)) {
+			    fprintf(stderr, "%s\n", "main: ERROR in calculator_proccess");
+			    return -1;
+		    }
 		}
-
-		if (-1 == calculator_proccess(argv, id)) {
-			fprintf(stderr, "%s\n", "main: ERROR in calculator_proccess");
-			return -1;
-		}
-
+		
 	MPI_Finalize();
 
 	return 0;
@@ -105,6 +105,191 @@ int main(int argc, char *argv[])
  **************************************************/
 int calculator_proccess(char *argv[], int proccess_id) 
 {
+
+    int num_keys = 0;
+
+	/* Flags */
+    int decrypt_flag = 0;
+    int key_available = 0;
+    int flag_probe = 0;
+    int finish_execution = 0;
+
+    /* Messages */
+	msg_decrypt_t decrypt_msg;
+	msg_data_t data_msg;
+	msg_request_data_t request_data_msg;
+	msg_finish_execution_t finish_execution_msg;
+
+	key_data_t dec_key; 				// Decrypted key
+	unsigned long long num_tries = 0; 	// Number of tries
+	clock_t begin, end;					// Time to decrypt a key
+
+	/* MPI additional parameters for Send an Recv */
+	MPI_Status status;
+	MPI_Request request;
+
+	/* ======================  CHECKING PARAMETERS ====================== */
+
+	if(argv[1] == NULL){
+		num_keys = DEFAULT_NUM_KEYS; /* DEBUG */
+		printf("(Proccess num %d) No argv. So num_keys will be %d\n", proccess_id, num_keys); /* DEBUG */
+	}else{
+		num_keys = atoi(argv[1]);
+	}
+
+	if (-1 == proccess_id) {
+		fprintf(stderr, "%s\n", "calculator_proccess: procces_id is -1");
+		return -1;
+	}
+	
+	// Seed for rand numbers
+	srand(SEED_MULT*proccess_id);
+	
+	/* ======================  EXECUTION ====================== */
+	
+	/*
+	DO {
+        Clave, etc. ← Recibir_parametros_bloqueante()
+        DO {
+        
+            Intentar_desencriptar(Clave)
+            IF (Clave_desencriptada) {
+                Notificar_clave_encontrada_bloqueante()
+                BREAK; // Clave NO disponible
+            }
+            
+            Mensaje ← Recibir_mensaje_no_bloqueante()
+            
+            IF (Hay mensaje) {
+                SWITCH (Mensaje) {
+                    CASE Mensaje_desencriptar {
+                        Clave, etc. ← Get_parametros(Mensaje)
+                    }
+                    CASE Mensaje_solicitud_datos {
+                        Enviar_datos()
+                        BREAK; // Clave NO disponible
+                    }
+                    CASE Mensaje_finalizar_ejecución {
+                        BREAK; // NO en ejecución
+                    }
+                }
+            }
+        } WHILE (Clave disponible)
+    } WHILE (En ejecución)
+	*/
+	
+	do { // While runnning
+	
+		if (MPI_SUCCESS != MPI_Probe(IO_PROCESS_ID, MPI_ANY_TAG, MPI_COMM_WORLD, &status)) {
+			fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Iprobe");
+			return -1;
+		}
+		
+	    switch(status.MPI_TAG) {
+
+			case DECRYPT_MESSAGE_TAG:
+			
+			    if (MPI_SUCCESS != MPI_Irecv(&decrypt_msg, 1, MPI_DECRYPT_MSG_T, IO_PROCESS_ID, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
+					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
+					return -1;
+				}
+				
+				key_available = 1;
+			
+			break;
+			
+			case FINISH_EXECUTION_MESSAGE_TAG: // Message not received, but gonna end
+				finish_execution = 1;
+			break;
+		}
+		
+		// End if we must end, of course
+		if (finish_execution)
+		    break;
+		
+		sleep(1);
+
+		/* Beggining search of key */
+		begin = clock();
+
+		do { // While there is a key to decrypt
+		
+		    decrypt_flag = key_decrypter(&decrypt_msg);
+		    ++num_tries;
+		    
+		    if (KEY_FOUND == decrypt_flag) {
+		    
+		        end = clock();
+		    
+		        if (-1 == fill_data_msg(&data_msg, decrypt_msg.key, proccess_id, num_tries, begin, end) ) {
+					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (1)");
+					return -1;
+				}
+
+				if (MPI_SUCCESS != MPI_Send(&data_msg , 1, MPI_DATA_MSG_T, IO_PROCESS_ID, DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
+					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Send (1)");
+					return -1;
+				}
+                
+                key_available = 0;
+				break; // Key not available anymore
+		    }
+		    
+		    if (MPI_SUCCESS != MPI_Iprobe(IO_PROCESS_ID, MPI_ANY_TAG, MPI_COMM_WORLD, &flag_probe, &status)) {
+				fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Iprobe");
+				return -1;
+			}
+
+			if(0 != flag_probe){
+			    switch(status.MPI_TAG) {
+
+					case DECRYPT_MESSAGE_TAG:
+					
+					    if (MPI_SUCCESS != MPI_Irecv(&decrypt_msg , 1, MPI_DECRYPT_MSG_T, IO_PROCESS_ID, DECRYPT_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
+							fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
+							return -1;
+						}
+					
+					break;
+
+					case REQUEST_DATA_MESSAGE_TAG:
+					
+					    end = clock();
+					    
+					    if (MPI_SUCCESS != MPI_Irecv(&request_data_msg, 1, MPI_INT, IO_PROCESS_ID, REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
+							fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
+							return -1;
+						}
+					
+					    if (-1 == fill_data_msg(&data_msg, decrypt_msg.key, proccess_id, num_tries, begin, end) ) {
+							fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (2)");
+							return -1;
+						}
+
+						if (MPI_SUCCESS != MPI_Send(&data_msg , 1, MPI_DATA_MSG_T, IO_PROCESS_ID, DATA_MESSAGE_TAG, MPI_COMM_WORLD) ) {
+							fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_Send (2)");
+							return -1;
+						}
+						
+						// We must now wait for indications
+						key_available = 0;
+					
+					break;
+
+					case FINISH_EXECUTION_MESSAGE_TAG: // Message not received, but gonna end
+						finish_execution = 1;
+					break;
+				}
+				
+				if (finish_execution)
+				    break;
+			}
+		    
+		} while(key_available); // While there is a key to decrypt
+
+	} while(!finish_execution);
+
+    /*
 	msg_decrypt_t decrypt_msg;
 	msg_data_t data_msg;
 	MPI_Status status;
@@ -117,7 +302,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 	    }
 	    
 	    printf("I am process %d and habe a cansur: %d\n", proccess_id, decrypt_msg.key.key_id);
-	    /*
+	    
         printf("ID: %d | Key ID: %d | Cipher: %s | Key: %lu | Min: %lu | Max: %lu\n\n\n",
                 decrypt_msg.message_id,
                 decrypt_msg.key.key_id,
@@ -126,7 +311,7 @@ int calculator_proccess(char *argv[], int proccess_id)
                 decrypt_msg.min_value,
                 decrypt_msg.max_value
         );
-        */
+        
         
         sleep(rand() % 6);
         
@@ -145,7 +330,7 @@ int calculator_proccess(char *argv[], int proccess_id)
         printf("I am process %d. Decrypted %d\n", proccess_id, data_msg.key.key_id);
   
     }
-
+    */
     return 0;
 }
 
@@ -233,14 +418,15 @@ int IO_proccess(char *argv[])
 	/* Messages */
 	msg_decrypt_t decrypt_msg;
 	msg_data_t data_msg;
-	int finish_exec_msg = FINISH_EXECUTION_MESSAGE_TAG;
-	msg_request_t request_data_msg = REQUEST_DATA_MESSAGE_TAG;
+	msg_finish_execution_t finish_execution_msg = FINISH_EXECUTION_MESSAGE_TAG;
+	msg_request_data_t request_data_msg = REQUEST_DATA_MESSAGE_TAG;
 
 	/* Flags*/
 	int msg_received_flag = -1;
 	int free_procs_flag = -1;
 	int flag_probe = -1;
 	int recv_msg_flag = -1;
+	int free_keys_flag = -1;
 
 	/* MPI stuff to create the group */
 	MPI_Group MPI_GROUP_WORLD;           
@@ -287,17 +473,15 @@ int IO_proccess(char *argv[])
 	
 	/* END OF DEBUG */
 	
-	
 	/* ======================  SENDING KEYS ====================== */
 
 	/* ============================================  THERE ARE KEYS LEFT TO GIVE TO THE PROCCESSES ============================================ */
-	key_left_id = are_there_keys_not_decrypted(k_table, num_keys);
-	if (ERROR_1 == key_left_id) {
+	free_keys_flag = search_free_keys(k_table, num_keys, &k_id);
+	if (ERROR_1 == free_keys_flag) {
 	    fprintf(stderr, "%s\n", "IO_proccess: ERROR in are_there_keys_not_decrypted (1)");
-		return -1;
+		return ERROR_1;
 	}
-	
-	while (NO_KEYS_LEFT != key_left_id) {
+	while (KEYS_LEFT == free_keys_flag) {
 	
 	    /*
 	    WHILE (Claves sin procesos asociados) {
@@ -342,11 +526,11 @@ int IO_proccess(char *argv[])
 			    return -1;
 		    }
 		    
-		    key_left_id = are_there_keys_not_decrypted(k_table, num_keys);
-	        if (ERROR_1 == key_left_id) {
+		    free_keys_flag = search_free_keys(k_table, num_keys, &k_id);
+	        if (ERROR_1 == free_keys_flag) {
 	            fprintf(stderr, "%s\n", "IO_proccess: ERROR in are_there_keys_not_decrypted (2)");
 		        return -1;
-	        } else if (NO_KEYS_LEFT == key_left_id){ // No keys without a proccess asociated
+	        } else if (NO_KEYS_LEFT == free_keys_flag){ // No keys without a proccess asociated
 		        break;
 	        }
 	        
@@ -367,7 +551,8 @@ int IO_proccess(char *argv[])
 		        return -1;
 	        }
 	        
-	        printf("--------------> IO_PROCESS: Key received %d from proc[%d]\n", data_msg.key.key_id, data_msg.proccess_id); /* DEBUG */ 
+	        printf("--------------> IO_PROCESS: Key received %d from proc[%d]\n", data_msg.key.key_id, data_msg.proccess_id); /* DEBUG */
+	        print_key_table(k_table, DEFAULT_NUM_KEYS); getchar();
 	        
 	        // And now process the data
 		    if (-1 == store_data(p_table, data_msg, num_procs) ){
@@ -385,99 +570,118 @@ int IO_proccess(char *argv[])
 			    fprintf(stderr, "%s\n", "IO_proccess: ERROR in assign_key_to_proccess (2)");
 			    return -1;
 		    }
+		    
+		    free_keys_flag = search_free_keys(k_table, num_keys, &k_id);
+	        if (ERROR_1 == free_keys_flag) {
+	            fprintf(stderr, "%s\n", "IO_proccess: ERROR in are_there_keys_not_decrypted (2)");
+		        return -1;
+	        } else if (NO_KEYS_LEFT == free_keys_flag){ // No keys without a proccess asociated
+		        break;
+	        }
 	    }
 	}
 	
-	    /*
-	    WHILE (Queden claves) { // Este bucle WHILE creo que es muy optimizable en el reparto de
-                                // tareas
+	printf("All keys assigned!\n");
+	print_key_table(k_table, DEFAULT_NUM_KEYS);
+	
+    /*
+    WHILE (Queden claves) { // Este bucle WHILE creo que es muy optimizable en el reparto de
+                            // tareas
 
-            IF (Hay mensaje) { // Es decir, si hay algun proceso libre
+        IF (Hay mensaje) { // Es decir, si hay algun proceso libre
+        
+            Mensaje <- Recibir_mensaje_no_bloqueante()
+            Datos ← Guardar_datos(Mensaje)
             
-                Mensaje <- Recibir_mensaje_no_bloqueante()
-                Datos ← Guardar_datos(Mensaje)
-                
-                FOR p IN procesos_calculando_clave_encontrada {
-                    Enviar_mensaje_solicitud_datos(q)
-                }
-                
-                FOR n IN numero_de_procesos_calculando_clave {
-                    Datos ← Recibir_respuesta_bloqueante()
-                    Procesar(Datos)
-                }
-                
-                IF (Quedan claves) {
-                    FOR p IN procesos_calculando_clave_encontrada
-                        Asignar _clave(p)
-                } ELSE
-                    BREAK; // NO quedan claves
-                }
-                
-            } ELSE {
-                Mensaje ← Recibir_mensaje_bloqueante() (Probe)
+            FOR p IN procesos_calculando_clave_encontrada {
+                Enviar_mensaje_solicitud_datos(q)
             }
+            
+            FOR n IN numero_de_procesos_calculando_clave {
+                Datos ← Recibir_respuesta_bloqueante()
+                Procesar(Datos)
+            }
+            
+            IF (Quedan claves) {
+                FOR p IN procesos_calculando_clave_encontrada
+                    Asignar _clave(p)
+            } ELSE
+                BREAK; // NO quedan claves
+            }
+            
+        } ELSE {
+            Mensaje ← Recibir_mensaje_bloqueante() (Probe)
         }
+    }
 
-        FOR p IN procesos_calculadores_en_el_sistema
-            Enviar_mensaje_finalizar_ejecucion()
-                
-        // Cálculos finalizados. Falta mostrar estadísticas, etc.
+    FOR p IN procesos_calculadores_en_el_sistema
+        Enviar_mensaje_finalizar_ejecucion()
+            
+    // Cálculos finalizados. Falta mostrar estadísticas, etc.
+    }
+    */
+	    
+    /*
+    k_id = are_there_keys_not_decrypted(k_table, num_keys); // It returns the id of keys not decryptede
+    if (ERROR_1 == k_id) {
+       fprintf(stderr, "%s\n", "IO_process: are_there_keys_not_decrypted");
+	   return -1;
+    }
+    
+    while (k_id >= 0) { // There are undecrypted keys
+    
+        // Check if there are any messages. Block otherwise
+        if (MPI_SUCCESS != MPI_Iprobe(MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &flag_probe, &status)) {
+            fprintf(stderr, "%s\n", "IO_process: ERROR in MPI_Recv (1)");
+            return -1;
         }
-	    */
-	    
-	    k_id = are_there_keys_not_decrypted(k_table, num_keys); // It returns the id of keys not decryptede
-	    if (ERROR_1 == k_id) {
-	       fprintf(stderr, "%s\n", "IO_process: are_there_keys_not_decrypted");
-		   return -1;
-	    }
-	    
-	    
-	    while (k_id >= 0) { // There are undecrypted keys
-	    
-	        // Check if there are any messages. Block otherwise
-	        if (MPI_SUCCESS != MPI_Iprobe(MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &flag_probe, &status)) {
+        
+        if (!flag_probe) { // There aren't any messages, thus all processes are busy
+	        // Wait for a message
+	        if (MPI_SUCCESS != MPI_Probe(MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
 	            fprintf(stderr, "%s\n", "IO_process: ERROR in MPI_Recv (1)");
 	            return -1;
             }
-            
-            if (!flag_probe) { // There aren't any messages, thus all processes are busy
-		        // Wait for a message
-		        if (MPI_SUCCESS != MPI_Probe(MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &status) ) {
-		            fprintf(stderr, "%s\n", "IO_process: ERROR in MPI_Recv (1)");
+	    } else { // There are some messages, that is, free processes
+	        
+	        if (MPI_SUCCESS != MPI_Irecv(&data_msg, 1, MPI_DATA_MSG_T, MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
+			    fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
+			    return -1;
+		    }
+		    
+		    // And save the data
+	        if (-1 == store_data(p_table, data_msg, num_procs) ){
+		        fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (1)");
+		        return -1;
+	        }
+
+	        if (-1 == update_proccess_and_key_data(data_msg, k_table, p_table)) {
+		        fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_proccess_and_key_data");
+		        return -1;
+	        }
+	        
+	        key_id_rcv = data_msg.key.key_id;
+            proc_id_rcv = data_msg.proccess_id;
+            num_procs_key = k_table[key_id_rcv].num_procs_list;
+
+            for (i = 0; i < num_procs_key; i++) {
+
+	            if (MPI_SUCCESS != MPI_Isend(&request_data_msg , 1, MPI_INT, k_table[key_id_rcv].procs[i], REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
+		            fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Send (2)");
 		            return -1;
 	            }
-		    } else { // There are some messages, that is, free processes
-		        
-		        if (MPI_SUCCESS != MPI_Irecv(&data_msg, 1, MPI_DATA_MSG_T, MPI_ANY_SOURCE, DATA_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
-				    fprintf(stderr, "%s\n", "calculator_proccess: ERROR in MPI_IRecv");
-				    return -1;
-			    }
-			    
-			    // And save the data
-		        if (-1 == store_data(p_table, data_msg, num_procs) ){
-			        fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (1)");
-			        return -1;
-		        }
-
-		        if (-1 == update_proccess_and_key_data(data_msg, k_table, p_table)) {
-			        fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_proccess_and_key_data");
-			        return -1;
-		        }
-		        
-		        key_id_rcv = data_msg.key.key_id;
-	            proc_id_rcv = data_msg.proccess_id;
-	            num_procs_key = k_table[key_id_rcv].num_procs_list;
-
-	            for (i = 0; i < num_procs_key; i++) {
-
-		            if (MPI_SUCCESS != MPI_Isend(&request_data_msg , 1, MPI_INT, k_table[key_id_rcv].procs[i], REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
-			            fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Send (2)");
-			            return -1;
-		            }
-	            }
-		    }
+            }
 	    }
+    }*/
+    
+    for (i = 1; i < num_procs; ++i){
+        if (MPI_SUCCESS != MPI_Isend(&finish_execution_msg, 1, MPI_INT, i, FINISH_EXECUTION_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
+			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in MPI_Send (2)");
+			return -1;
+		}
+    }
 	    
+    return 0;
 	    
 }
 
@@ -1011,7 +1215,7 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 	/* Messages */
 	msg_decrypt_t decrypt_msg;
 	msg_data_t data_msg;
-	msg_request_t request_msg;
+	msg_request_data_t request_msg;
 
 	/* MPI additional parameters for Send an Recv */
 	MPI_Request request;
@@ -1079,8 +1283,6 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 		return SUCCESS;
 
 	} else { // All the keys have been asigned
-	
-	    printf("\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/\\/ aLL kEYs aSsIGnED\n"); // DEBUG
 	
 		for (i = 0; i < num_procs_calc; i++) {
 			if (MPI_SUCCESS != MPI_Isend(&request_msg, 1, MPI_INT, procs_calc[i], REQUEST_DATA_MESSAGE_TAG, MPI_COMM_WORLD, &request) ) {
@@ -1183,7 +1385,7 @@ int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* nu
 	        *key = k_table[first_free_key].key;
 	        break;
 	    }
-	}
+    }
 	
 	if (-1 == first_free_key) // No free keys
 	    return NO_KEYS_LEFT;
@@ -1349,4 +1551,89 @@ int are_there_keys_not_decrypted(key_table_t k_table, int num_keys)
 	}
 
 	return NO_KEYS_LEFT; // All the keys have been decrypted
+}
+
+/***************************************
+ *  key_decrypter                      * 
+ ***************************************
+ *                                     *
+ *  Decrypts the crypted combination   *
+ *  to get the original key            *
+ *                                     *
+ *  Return: if the key is found 0      *
+ 			Otherwise, returns 1       *
+ ***************************************/
+int key_decrypter(msg_decrypt_t* msg)
+{
+	char decrypt_string[msg->key.length];
+	char *ptr;
+
+	sprintf(decrypt_string, "%08ld", (msg->min_value + rand() % (msg->max_value - msg->min_value) ));
+	ptr = crypt(decrypt_string, "aa");
+
+	if (0 == strcmp(ptr, msg->key.cypher) ) {
+		msg->key.key_number = strtoul(decrypt_string, &ptr, 0);
+		return KEY_FOUND;
+	}
+
+	return KEY_NOT_FOUND; //Not found
+}
+
+/***************************************
+ * fill_data_msg                       * 
+ ***************************************
+ *                                     *
+ *  Fills the data_msg_t we'll send    *
+ *     
+ *                     
+ *                                     *
+ *  Return: in case of error -1        *
+ 			Otherwise, returns 1       *
+ ***************************************/
+
+
+int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end){
+	data_msg->message_id = DATA_MESSAGE_TAG;
+	data_msg->key = key;
+	data_msg->proccess_id = proc_id;
+	data_msg->num_tries = num_tries;
+	data_msg->time= (double)(end-begin);
+	return 1;
+}
+
+/***************************************
+ * search_free_keys                    * 
+ ***************************************
+ *                                     *
+ *  Looks for a non decrypted key      *
+ *                      
+ *                                      *
+ *  Return: in case of error ERROR_1   
+            if free keys KEYS_LEFT
+            if no free keys NO_KEYS_LEFT
+ ***************************************/
+int search_free_keys(key_table_t k_table, int num_keys, int *key)
+{
+    int i;
+    int free_key;
+
+    if (NULL == k_table) {
+        fprintf(stderr, "%s\n", "search_free_keys: k_table is NULL");
+		return ERROR_1;
+    } else if (NULL == key) {
+        fprintf(stderr, "%s\n", "search_free_keys: key is NULL");
+		return ERROR_1;
+    } else if (num_keys < 0) {
+        fprintf(stderr, "%s\n", "search_free_keys: num_keys cannot be less than 0");
+		return ERROR_1;
+    }
+    
+    for (i = 0; i < num_keys; ++i) {
+        if (0 == k_table[i].decrypted_flag && 0 == k_table[i].num_procs_list) {
+            *key = i;
+            return KEYS_LEFT;
+        }
+    }
+    
+    return NO_KEYS_LEFT;
 }

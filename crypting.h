@@ -9,6 +9,8 @@
 #define MIN                           0		        /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 #define MAX                           10000		    /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 
+#define SEED_MULT                     1890
+
 #define N_DECRYPT_MESSAGE_ELEMENTS          4
 #define N_KEY_ELEMENTS				        4
 #define N_DATA_MESSAGE_ELEMENTS       	    5
@@ -42,6 +44,8 @@
 // Functions' return values' macros
 #define KEYS_LEFT               -10
 #define NO_KEYS_LEFT            -11
+#define KEY_FOUND               -10
+#define KEY_NOT_FOUND           -11
 
 #define SUCCESS                 -128
 #define ERROR_1                 -129
@@ -78,7 +82,8 @@ typedef struct {
 	unsigned long max_value;				/* Max. limit to find a key */
 } msg_decrypt_t;
 
-typedef int msg_request_t;
+typedef int msg_request_data_t;
+typedef int msg_finish_execution_t;
 
 /* ==================== TABLES ==================== */
 
@@ -123,13 +128,13 @@ int distribute_work(int num_procs, unsigned long *starting_values);
 /* KEY HANDLE FUNCTIONS */
 key_data_t key_generator(int id);
 char *key_encrypter(unsigned long key); 
-int key_decrypter(msg_decrypt_t *msg, clock_t* end, int* key_found);
+int key_decrypter(msg_decrypt_t *msg);
 
 /* TABLE HANDLE FUNCTIONS */
 int initialize_tables(key_table_t k_table, proc_table_t p_table, int n_proc, int num_keys);
 int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table);
 
-int fill_data_msg(msg_data_t* data_msg, msg_decrypt_t* decrypt_msg, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
+int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
 int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long min_value, unsigned long max_value);
 int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
 int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);
