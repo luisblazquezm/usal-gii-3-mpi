@@ -1,43 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "stats.h"
 
-// Standard terminal VT100 is 80 x 25
-#define TERM_WIDTH      79
-#define TERM_HEIGHT     24
-#define ITEMS_PER_PAGE  22
-#define N_PROCS         5
-
-int print_table(char **colname,
-                char **item,
-                int nrows,
-                int ncols,
-                char *last_page_message);
-
-int print_cipher_key(int founder, key_type *key, int numitems);
-
-char* my_itoa(int i);
-
-int format_table(char **colname,
-                 char **item,
-                 int nrows,
-                 int ncols,
-                 char *heading,
-                 char *row_format,
-                 int max_width,
-                 int format_size);
-                 
-int display_stats(char **found_keys, int nkeys,
-                  char **keys_per_proc, int nprocs,
-                  int n_calls_rand_crypt,
-                  int nattempts,
-                  double secs_per_key,
-                  double runtime);
-
+/*
 int main(void)
 {
-
     char* keys[25][3] = {"Da9sd8h7HBpoS", "2374988", "0",
                          "a1bKHLk67hkkh", "4234247", "3",
                          "89jf4ln89LJk0", "6516808", "2",
@@ -79,6 +48,7 @@ int main(void)
 
     return 0;
 }
+*/
 
 void print_horizontal_bar(char c, int len, int newline)
 {
@@ -120,9 +90,14 @@ int display_stats(char **found_keys, int nkeys,
         
     // DISPLAY TABLES
     snprintf(buf, sizeof(buf), "Numero de claves encontradas: %d", nkeys);
-    print_table(titles_keys, (char **)found_keys, nkeys, 3, buf);
-    print_table(titles_keys_per_proc, (char **)keys_per_proc, nprocs, 2, NULL);
-    
+
+    print_table((char *)titles_keys, (char *)found_keys, nkeys, 3, buf);
+
+printf("-------------------------------------------------> 1\n"); getchar(); // DEBUG   
+
+    print_table((char *)titles_keys_per_proc, (char *)keys_per_proc, nprocs, 2, NULL);
+
+printf("-------------------------------------------------> 2\n"); getchar(); // DEBUG   
     
     // DISPLAY NON-TABLES
     system("clear");
@@ -132,7 +107,7 @@ int display_stats(char **found_keys, int nkeys,
     printf ("%c %*s%-s%*s %c\n", border_char, tmp, "", sumup_title, tmp, "", border_char);
     
     print_horizontal_bar(border_char, TERM_WIDTH, 1);
-    
+
     printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
     snprintf(buf, sizeof(buf), "Numero de procesos: %d procesos", nprocs);
     printf ("%c %-*s %c\n", border_char, TERM_WIDTH - 4, buf, border_char);
@@ -190,8 +165,8 @@ char* my_itoa(int i) {
     return str;
 }
 
-int print_table(char **colname,
-                char **item,
+int print_table(char *_colname,
+                char *_item,
                 int nrows,
                 int ncols,
                 char *last_page_message) {
@@ -200,12 +175,17 @@ int print_table(char **colname,
     int rows_left = -1;
     char heading[TERM_WIDTH];
     char row_format[100];
+    char **colname;
+    char **item;
     
     if (colname == NULL || item == NULL || nrows < 0 || ncols < 0,
     
         /* This limitation is crap, but I have to think of it */ ncols > 4){
         return 1;
     }
+    
+    colname = str_split(_colname, '\0');
+    item = str_split(_item, '\0');
 
     format_table(colname,
                  item,
@@ -353,7 +333,81 @@ int format_table(char **colname,   // Column headings
     return 0;
 }
 
+char** str_split(char* a_str, const char a_delim)
+{
+    char** result    = 0;
+    size_t count     = 0;
+    char* tmp        = a_str;
+    char* last_comma = 0;
+    char delim[2];
+    delim[0] = a_delim;
+    delim[1] = 0;
 
+    /* Count how many elements will be extracted. */
+    while (*tmp)
+    {
+        if (a_delim == *tmp)
+        {
+            count++;
+            last_comma = tmp;
+        }
+        tmp++;
+    }
+
+    /* Add space for trailing token. */
+    count += last_comma < (a_str + strlen(a_str) - 1);
+
+    /* Add space for terminating null string so caller
+       knows where the list of returned strings ends. */
+    count++;
+
+    result = malloc(sizeof(char*) * count);
+
+    if (result)
+    {
+        size_t idx  = 0;
+        char* token = strtok(a_str, delim);
+
+        while (token)
+        {
+            assert(idx < count);
+            *(result + idx++) = strdup(token);
+            token = strtok(0, delim);
+        }
+        assert(idx == count - 1);
+        *(result + idx) = 0;
+    }
+
+    return result;
+}
+
+/*
+int main()
+{
+    char months[] = "JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC";
+    char** tokens;
+
+    printf("months=[%s]\n\n", months);
+
+    tokens = str_split(months, ',');
+
+    if (tokens)
+    {
+        int i;
+        for (i = 0; *(tokens + i); i++)
+        {
+            printf("month=[%s]\n", *(tokens + i));
+            free(*(tokens + i));
+        }
+        printf("\n");
+        free(tokens);
+    }
+
+    return 0;
+}
+*/
+
+/*
 int print_cipher_key(int founder, key_type *key, int numitems) {
     
     int i, j;
@@ -390,3 +444,4 @@ int print_cipher_key(int founder, key_type *key, int numitems) {
 
 	return 0;
 }
+*/

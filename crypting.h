@@ -1,3 +1,6 @@
+#ifndef __CRYPTING_H
+#define __CRYPTING_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,6 +8,7 @@
 #include <unistd.h>
 #include <crypt.h>
 #include "mpi.h"
+#include "stats.h"
 
 #define MIN                           0		        /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 #define MAX                           10000		    /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
@@ -106,7 +110,7 @@ struct key_table_row {
 	key_data_t key;							/* Key object */
 	int *procs;								/* List of proccesses working on the key */
 	int num_procs_list;						/* Number of proccesses working on the key */
-	int decrypted_flag;						/* Indicates if the key has already been found or not */
+	int founder;						/* Indicates if the key has already been found or not */
 };
 
 
@@ -141,9 +145,19 @@ int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long 
 int store_stats_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
 int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);
 
+/* Stats */
+int process_raw_data_and_print(key_table_t k_table, 
+                               int num_keys, 
+                               proc_table_t p_table, 
+                               int num_procs);
+void* key_table_to_str(key_table_t k_table, int num_keys);
+void* proc_table_to_str(proc_table_t p_table, int num_procs);
+
 /* Debug */
 int debug_msg_printf(const char *format, ...);
 int print_key_table(key_table_t key_table, int nkeys);
 int print_proc_table(proc_table_t proc_table, int nprocs);
 
 
+
+#endif
