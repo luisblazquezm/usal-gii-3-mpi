@@ -13,7 +13,7 @@
 
 #define N_DECRYPT_MESSAGE_ELEMENTS          4
 #define N_KEY_ELEMENTS				        4
-#define N_DATA_MESSAGE_ELEMENTS       	    5
+#define N_DATA_MESSAGE_ELEMENTS       	    6
 #define N_REQUEST_DATA_MESSAGE_ELEMENTS     1
 #define N_FINISH_EXECUTION_MESSAGE_ELEMENTS 1
 
@@ -74,6 +74,7 @@ typedef struct {
 	int proccess_id;						/* Id of the proccess that has found it */
 	unsigned long num_tries;				/* Number of tries the proccess has needeed to found the key */
 	double time;							/* Number of seconds the proccess has needeed to found the key */
+	int found_flag;
 } msg_data_t;
 
 typedef struct {
@@ -113,8 +114,8 @@ typedef struct proc_table_row* proc_table_t;
 typedef struct key_table_row* key_table_t;
 
 /* Process tasks functions */
-int calculator_proccess(char *argv[], int proccess_id); 
-int IO_proccess(char *argv[]);
+int calculator_proccess(int argc, char *argv[], int proccess_id); 
+int IO_proccess(int argc, char *argv[]);
 
 /* Other functions. They could be included in a utils.h */
 int register_key_type(key_data_t* data, MPI_Datatype* MPI_Type);
@@ -135,7 +136,7 @@ int key_decrypter(msg_decrypt_t *msg);
 int initialize_tables(key_table_t k_table, proc_table_t p_table, int n_proc, int num_keys);
 int associate_proc_to_key(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table);
 
-int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
+int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end, int found_flag); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
 int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long min_value, unsigned long max_value);
 int store_stats_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
 int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);

@@ -44,7 +44,6 @@ MPI_Datatype MPI_DATA_MSG_T;
 
 int main(int argc, char *argv[]) 
 {
-
 	MPI_Init(&argc, &argv);
 
 		int id = -1;
@@ -76,12 +75,12 @@ int main(int argc, char *argv[])
 		}
 
 		if (id == 0) {
-			if (IO_proccess(argv) < 0) {
+			if (IO_proccess(argc, argv) < 0) {
 				fprintf(stderr, "%s\n", "main: ERROR in IO_proccess");
 				return -1;
 			}
 		} else {
-		    if (-1 == calculator_proccess(argv, id)) {
+		    if (-1 == calculator_proccess(argc, argv, id)) {
 			    fprintf(stderr, "%s\n", "main: ERROR in calculator_proccess");
 			    return -1;
 		    }
@@ -103,7 +102,7 @@ int main(int argc, char *argv[])
  *     2.2) Not Found it --> keeps trying :)      *
  *  3) Receives a new key                         *
  **************************************************/
-int calculator_proccess(char *argv[], int proccess_id) 
+int calculator_proccess(int argc, char *argv[], int proccess_id) 
 {
 
     int num_keys = 0;
@@ -130,11 +129,13 @@ int calculator_proccess(char *argv[], int proccess_id)
 
 	/* ======================  CHECKING PARAMETERS ====================== */
 
-	if(argv[1] == NULL){
-		num_keys = DEFAULT_NUM_KEYS; /* DEBUG */
-		printf("Process %d alive :D\n", proccess_id); /* DEBUG */
-	}else{
+	printf("Process %d alive :D\n", proccess_id); /* DEBUG */
+	if(argc < 2){
+		num_keys = DEFAULT_NUM_KEYS;
+	} else if (2 == argc) {
 		num_keys = atoi(argv[1]);
+	} else {
+	    printf("%s", "What the fuck are those arguments\n"); // DEBUG
 	}
 
 	if (-1 == proccess_id) {
@@ -219,7 +220,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 		    
 		        end = clock();
 		    
-		        if (ERROR == fill_data_msg(&data_msg, decrypt_msg.key, proccess_id, num_tries, begin, end) ) {
+		        if (ERROR == fill_data_msg(&data_msg, decrypt_msg.key, proccess_id, num_tries, begin, end, 1) ) {
 					fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (1)");
 					return -1;
 				}
@@ -259,7 +260,7 @@ int calculator_proccess(char *argv[], int proccess_id)
 							return -1;
 						}
 					
-					    if (ERROR == fill_data_msg(&data_msg, decrypt_msg.key, proccess_id, num_tries, begin, end) ) {
+					    if (ERROR == fill_data_msg(&data_msg, decrypt_msg.key, proccess_id, num_tries, begin, end, 0) ) {
 							fprintf(stderr, "%s\n", "calculator_proccess: ERROR in fill_data_msg (2)");
 							return -1;
 						}
@@ -298,7 +299,7 @@ int calculator_proccess(char *argv[], int proccess_id)
  *  3) registers the type of MPI for structs     *
  *  3) Send the keys to calculator proccesses     *
  **************************************************/
-int IO_proccess(char *argv[]) 
+int IO_proccess(int argc, char *argv[]) 
 { 
     /*
     PROCEDURE Proceso_central {
@@ -404,12 +405,14 @@ int IO_proccess(char *argv[])
 	/* Data message reception */
 	int key_id_rcv = -1, proc_id_rcv = -1;
 	
-	if(argv[1] == NULL) {
-	    num_keys = DEFAULT_NUM_KEYS; /* DEBUG */
-	    printf("%s\n", "IO Process alive! :D"); /* DEBUG */
-    } else {
-	    num_keys = atoi(argv[1]);
-    }
+    printf("%s\n", "IO Process alive! :D"); /* DEBUG */
+    if(argc < 2){
+		num_keys = DEFAULT_NUM_KEYS;
+	} else if (2 == argc) {
+		num_keys = atoi(argv[1]);
+	} else {
+	    printf("%s", "What the fuck are those arguments\n"); // DEBUG
+	}
 
 	if (MPI_SUCCESS != MPI_Comm_size(MPI_COMM_WORLD, &num_procs)) {
 		fprintf(stderr, "%s\n", "IO_proccess: ERROR in MPI_Comm_size");
@@ -752,7 +755,7 @@ int initialize_tables(key_table_t k_table, proc_table_t p_table, int n_proc, int
 			return -1;
 		}
 
-		for(j = 0; j < num_keys; j++) p_table[i].stats.key_proccesing_times[j] = -1;
+		for(j = 0; j < num_keys; j++) p_table[i].stats.key_proccesing_times[j] = 0.0;
 
 	}
 
@@ -1003,7 +1006,8 @@ int register_data_msg(msg_data_t* data, MPI_Datatype* MPI_Type)
 			key_data_t key;							
 			int proccess_id;					
 			unsigned long num_tries;				
-			double time;							
+			double time;	
+			int found_flag;						
 		} msg_data_t;
 	 *
 	 */
@@ -1012,6 +1016,7 @@ int register_data_msg(msg_data_t* data, MPI_Datatype* MPI_Type)
 	types[2] = MPI_INT;
 	types[3] = MPI_UNSIGNED_LONG;
 	types[4] = MPI_DOUBLE;
+	types[5] = MPI_INT;
 
 	/* Indicate the numbers of elements of each type */
 	lengths[0] = 1;
@@ -1019,6 +1024,7 @@ int register_data_msg(msg_data_t* data, MPI_Datatype* MPI_Type)
 	lengths[2] = 1;
 	lengths[3] = 1;
 	lengths[4] = 1;
+	lengths[5] = 1;
 
 	/* Calculate the position of the elements in the memory address regarding the beginning of the struct */
 	MPI_Address(data, &memory_address[0]);
@@ -1027,12 +1033,14 @@ int register_data_msg(msg_data_t* data, MPI_Datatype* MPI_Type)
 	MPI_Address(&(data->proccess_id), &memory_address[3]);
 	MPI_Address(&(data->num_tries), &memory_address[4]);
 	MPI_Address(&(data->time), &memory_address[5]);
+	MPI_Address(&(data->found_flag), &memory_address[6]);
 
 	memory_address_distances[0] = memory_address[1] - memory_address[0];
 	memory_address_distances[1] = memory_address[2] - memory_address[0];
 	memory_address_distances[2] = memory_address[3] - memory_address[0];
 	memory_address_distances[3] = memory_address[4] - memory_address[0];
 	memory_address_distances[4] = memory_address[5] - memory_address[0];
+	memory_address_distances[5] = memory_address[6] - memory_address[0];
 
 	/* Create struct in MPI */
 	if (MPI_SUCCESS != MPI_Type_struct(N_DATA_MESSAGE_ELEMENTS, lengths, memory_address_distances, types, MPI_Type) ) {
@@ -1444,9 +1452,10 @@ int store_stats_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
 	
 	n_proc = data_msg.proccess_id - 1;
 	if (0 <= n_proc && n_proc < num_procs) {
-	    p_table[n_proc].stats.n_keys += 1;
+	    if (data_msg.found_flag)
+	        p_table[n_proc].stats.n_keys += 1;
 		p_table[n_proc].stats.n_rand_crypt_calls += data_msg.num_tries;
-		p_table[n_proc].stats.key_proccesing_times[p_table[n_proc].stats.n_keys - 1] = data_msg.time;
+		p_table[n_proc].stats.key_proccesing_times[p_table[n_proc].stats.n_keys - 1] = data_msg.time/CLOCKS_PER_SEC;
 		return 1;
 	} else {
 	    return -1;
@@ -1485,14 +1494,13 @@ int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc
 			// DEBUG
 			printf("%s\n", "Updated tables");
 			printf("%s\n", "Processes:");
-			for (j = 0; j < 5; ++j) {
-			    printf("\t|-> Process[%d]: %d\n", j+1, p_table[j].stats.n_keys);
-			}
-			printf("%s", "Keys found: ");
-			for (j = 0; j < DEFAULT_NUM_KEYS; ++j) {
-			    if (k_table[j].decrypted_flag){
-			        printf("%d ", k_table[j].key_id);
+			for (j = 0; j < 30; ++j) {
+			    int k = -1;
+			    double time = 0.0;
+			    for (k = 0; k < 500; ++k){
+			        time += p_table[j].stats.key_proccesing_times[k];
 			    }
+			    printf("\t|-> Process[%d]: %.4lf s\n", j+1, time);
 			}
 			printf("\n=========================================================\n\n");
 			
@@ -1580,7 +1588,7 @@ int key_decrypter(msg_decrypt_t* msg)
  			Otherwise, returns 1       *
  ***************************************/
 
-int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end){
+int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end, int found_flag){
 
     if (NULL == data_msg) {
         fprintf(stderr, "%s\n", "fill_data_msg: data_msg is NULL");
@@ -1592,6 +1600,7 @@ int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tri
 	data_msg->proccess_id = proc_id;
 	data_msg->num_tries = num_tries;
 	data_msg->time= (double)(end-begin);
+	data_msg->found_flag = found_flag;
 	return SUCCESS;
 }
 
