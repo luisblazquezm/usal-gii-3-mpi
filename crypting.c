@@ -348,13 +348,13 @@ int IO_proccess(char *argv[])
 		printf("Message received from proc [%d]\n", proc_id); /* DEBUG */
 
 		/* Store data from the data message received */
-		if (-1 == store_data(p_table, data_msg, num_procs) ){
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (1)");
+		if (-1 == store_stats_data(p_table, data_msg, num_procs) ){
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_stats_data (1)");
 			return -1;
 		}
 
-		if (-1 == update_proccess_and_key_data(data_msg, k_table, p_table)) {
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_proccess_and_key_data");
+		if (-1 == update_tables_after_key_found(data_msg, k_table, p_table)) {
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_tables_after_key_found");
 			return -1;
 		}
 
@@ -381,13 +381,13 @@ int IO_proccess(char *argv[])
 		} 
 
 		/* Store data from the data message received *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NOT DONE YET
-		if (-1 == store_data(p_table, data_msg, num_procs) ){
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (2)");
+		if (-1 == store_stats_data(p_table, data_msg, num_procs) ){
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_stats_data (2)");
 			return -1;
 		}
 
-		if (-1 == update_proccess_and_key_data(data_msg, k_table, p_table)) {
-			fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_proccess_and_key_data");
+		if (-1 == update_tables_after_key_found(data_msg, k_table, p_table)) {
+			fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_tables_after_key_found");
 			return -1;
 		}
 
@@ -410,8 +410,8 @@ int IO_proccess(char *argv[])
 				return -1;
 			}
 
-			if (-1 == store_data(p_table, data_msg, num_procs) ){
-				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_data (3)");
+			if (-1 == store_stats_data(p_table, data_msg, num_procs) ){
+				fprintf(stderr, "%s\n", "IO_proccess: ERROR in store_stats_data (3)");
 				return -1;
 			}
 
@@ -541,8 +541,8 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 		}
 
 		/* Register the proccess calculating the key */
-		if (-1 == register_proccess_and_key_table(proc_id, key_to_assign.key_id, k_table, p_table) ){
-			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in register_proccess_and_key_table");
+		if (-1 == associate_proc_to_key(proc_id, key_to_assign.key_id, k_table, p_table) ){
+			fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in associate_proc_to_key");
 			return -1;
 		}
 
@@ -564,8 +564,8 @@ int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_tabl
 				return -1;
 			}
 
-			if (-1 == store_data(p_table, data_msg, num_procs) ){
-				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in store_data");
+			if (-1 == store_stats_data(p_table, data_msg, num_procs) ){
+				fprintf(stderr, "%s\n", "assign_key_to_proccess: ERROR in store_stats_data");
 				return -1;
 			}
 
@@ -865,7 +865,7 @@ int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* nu
 }
 
 /***************************************
- *  register_proccess_and_key_table    * 
+ *  associate_proc_to_key    * 
  ***************************************
  *                                     *
  *  Adds a new proccess to the list    *
@@ -874,19 +874,19 @@ int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* nu
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table)
+int associate_proc_to_key(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table)
 {
 	int num_procs_list = 0;
 
 	/* ======================  CHECKING PARAMETERS ====================== */
 
 	if (-1 == proc_id) {
-		fprintf(stderr, "%s\n", "register_proccess_and_key_table: key_id is -1");
+		fprintf(stderr, "%s\n", "associate_proc_to_key: key_id is -1");
 		return -1;
 	}
 
 	if (-1 == key_id) {
-		fprintf(stderr, "%s\n", "register_proccess_and_key_table: key_id is -1");
+		fprintf(stderr, "%s\n", "associate_proc_to_key: key_id is -1");
 		return -1;
 	}
 
@@ -902,7 +902,7 @@ int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table
 }
 
 /***************************************
- *  update_proccess_and_key_data       * 
+ *  update_tables_after_key_found       * 
  ***************************************
  *                                     *
  *  Updates the key and proccess tables*
@@ -911,7 +911,7 @@ int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table)
+int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table)
 {
 	int k_id = data_msg.key.key_id;
 	int n_procs_key = k_table[k_id].num_procs_list;
@@ -1219,7 +1219,7 @@ int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long 
 
 
 /***************************************
- * store_data                          * 
+ * store_stats_data                          * 
  ***************************************
  *                                     *
  *  Fills the data_msg_t we'll send    *
@@ -1229,7 +1229,7 @@ int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long 
  *  Return: in case of error -1        *
  *			Otherwise, returns 1       *
  ***************************************/
-int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
+int store_stats_data(proc_table_t p_table, msg_data_t data_msg, int num_procs){
 	
 	int n_proc;
 	

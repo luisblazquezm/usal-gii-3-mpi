@@ -47,6 +47,7 @@
 #define KEY_FOUND               -10
 #define KEY_NOT_FOUND           -11
 
+#define ERROR                   -1
 #define SUCCESS                 -128
 #define ERROR_1                 -129
 #define ERROR_2                 -130
@@ -55,7 +56,7 @@
 #define ERROR_5                 -133
 
 /* Debug */
-#define DEFAULT_NUM_KEYS 5
+#define DEFAULT_NUM_KEYS 100
 
 
 /* ==================== MESSAGE ==================== */
@@ -132,12 +133,12 @@ int key_decrypter(msg_decrypt_t *msg);
 
 /* TABLE HANDLE FUNCTIONS */
 int initialize_tables(key_table_t k_table, proc_table_t p_table, int n_proc, int num_keys);
-int register_proccess_and_key_table(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table);
+int associate_proc_to_key(int proc_id, int key_id, key_table_t k_table, proc_table_t p_table);
 
 int fill_data_msg(msg_data_t* data_msg, key_data_t key, int proc_id, int num_tries, clock_t begin, clock_t end); /* NOTE : data_msg.time = (double)(end - begin) / CLOCKS_PER_SEC;*/
 int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long min_value, unsigned long max_value);
-int store_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
-int update_proccess_and_key_data(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);
+int store_stats_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
+int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);
 
 /* Debug */
 int debug_msg_printf(const char *format, ...);
