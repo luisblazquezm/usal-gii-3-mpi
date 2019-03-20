@@ -55,7 +55,7 @@
 #define ERROR_5                 -133
 
 /* Debug */
-#define DEFAULT_NUM_KEYS 10
+#define DEFAULT_NUM_KEYS 5
 
 
 /* ==================== MESSAGE ==================== */
