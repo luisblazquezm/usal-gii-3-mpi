@@ -7,13 +7,22 @@
 #include <time.h>
 #include <unistd.h>
 #include <crypt.h>
+#include <ctype.h>
 #include "mpi.h"
-#include "stats.h"
+
+// Standard terminal VT100 is 80 x 25
+#define TERM_WIDTH      79
+#define TERM_HEIGHT     24
+#define ITEMS_PER_PAGE  22
+#define N_PROCS         5
+
+#define N_COLS_KEY_TABLE    3
+#define N_COLS_PROC_TABLE    2
+#define WIDEST_CELL_WIDTH_KEY_TABLE   14
+#define WIDEST_CELL_WIDTH_PROC_TABLE  5
 
 #define MIN                           0		        /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
 #define MAX                           10000		    /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
-
-#define SEED_MULT                     1890
 
 #define N_DECRYPT_MESSAGE_ELEMENTS          4
 #define N_KEY_ELEMENTS				        4
@@ -145,19 +154,44 @@ int fill_decrypt_msg(msg_decrypt_t *decrypt_msg, key_data_t key , unsigned long 
 int store_stats_data(proc_table_t p_table, msg_data_t data_msg, int num_procs);
 int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc_table_t p_table);
 
-/* Stats */
-int process_raw_data_and_print(key_table_t k_table, 
-                               int num_keys, 
-                               proc_table_t p_table, 
-                               int num_procs);
-void* key_table_to_str(key_table_t k_table, int num_keys);
-void* proc_table_to_str(proc_table_t p_table, int num_procs);
-
 /* Debug */
 int debug_msg_printf(const char *format, ...);
 int print_key_table(key_table_t key_table, int nkeys);
 int print_proc_table(proc_table_t proc_table, int nprocs);
 
 
+/* Stats */
+int process_raw_data_and_print(key_table_t k_table, 
+                               int num_keys, 
+                               proc_table_t p_table, 
+                               int num_procs);
+char** key_table_to_str(key_table_t k_table, int num_keys);
+char** proc_table_to_str(proc_table_t p_table, int num_procs);
+char** str_split(char* a_str, const char a_delim);
+
+int print_table(char **colname,
+                char **item,
+                int nrows,
+                int ncols,
+                char *last_page_message);
+
+char* my_itoa(int i);
+
+int format_table(char **colname,
+                 char **item,
+                 int nrows,
+                 int ncols,
+                 char *heading,
+                 char *row_format,
+                 int max_width,
+                 int format_size);
+      
+                 
+int display_stats(char **found_keys, int nkeys,
+                  char **keys_per_proc, int nprocs,
+                  unsigned long *n_calls_rand_crypt,
+                  int nattempts,
+                  double secs_per_key,
+                  double runtime);
 
 #endif

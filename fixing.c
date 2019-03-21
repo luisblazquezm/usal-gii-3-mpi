@@ -17,8 +17,6 @@
  *************************************************/
 
 #include "crypting.h"
-#include <unistd.h>
-#include <ctype.h>
 
 /*
  * =================== SPECIAL COMMENTS ===================
@@ -144,7 +142,7 @@ int calculator_proccess(int argc, char *argv[], int proccess_id)
 	}
 	
 	// Seed for rand numbers
-	srand(SEED_MULT*proccess_id);
+	srand(time(NULL));
 	
 	/* ======================  EXECUTION ====================== */
 	
@@ -419,6 +417,10 @@ int IO_proccess(int argc, char *argv[])
 		return -1;
 	}
 
+
+    // Initialize seed
+    srand(time(NULL));
+
 	/* ======================  CREATE TABLE OF KEYS AND PROCCESSES ====================== */
 
 	if (NULL == (k_table = (struct key_table_row *) malloc(num_keys * sizeof(struct key_table_row)))){ 
@@ -607,7 +609,6 @@ int IO_proccess(int argc, char *argv[])
 		            fprintf(stderr, "%s\n", "IO_proccess: ERROR in update_tables_after_key_found");
 		            return -1;
 	            }
-	            
             }
             
             k_id = are_there_keys_not_decrypted(k_table, num_keys); // It returns the id of keys not decryptede
@@ -644,16 +645,16 @@ int IO_proccess(int argc, char *argv[])
 		}
     }
     
-    process_raw_data_and_print(k_table, num_keys, p_table, num_procs);
+    process_raw_data_and_print(k_table, num_keys, p_table, num_procs - 1); // -1 because we don't show stats for IO process
 
     return 0;
 	    
 }
 
-int print_PROC_TABLE(key_table_t key_table, int nkeys) {
+int print_key_table(key_table_t key_table, int nkeys) {
     
     int i, j;
-    char format[] = "ID: %d | Cipher: %s | Key: %lu | Decrypted: %s | NumProcsAssigned %d\n";
+    char format[] = "ID: %d | Cipher: %s | Key: %lu | Decrypted: %d | NumProcsAssigned %d\n";
     
     if (NULL == key_table || nkeys < 0)
         return -1;
@@ -664,7 +665,7 @@ int print_PROC_TABLE(key_table_t key_table, int nkeys) {
                 key_table[i].key_id,
                 key_table[i].key.cypher,
                 key_table[i].key.key_number,
-                key_table[i].founder ? "TRUE" : "FALSE",
+                key_table[i].founder,
                 key_table[i].num_procs_list
         );
         printf("%s", "\t|-> Procs: ");
@@ -1482,22 +1483,26 @@ int update_tables_after_key_found(msg_data_t data_msg, key_table_t k_table, proc
 	int proc_id = -1;
 
 	for (i = 0; i < n_procs_key; i++) {
+	
 		if (data_msg.proccess_id == k_table[k_id].procs[i]) {
+		
 			proc_id = k_table[k_id].procs[i];
+			
 			p_table[proc_id - 1].occupied_flag = 0;
 			for (j = i + 1; j < n_procs_key; ++j) { // Move every position backwards. Like a queue
-			    k_table[k_id].procs[j-1] = k_table[k_id].procs[j];
+			    k_table[k_id].procs[j- 1] = k_table[k_id].procs[j];
 			}
-			//printf("procs[%d] - value = %d => NULL_PROC_ID\n\n\n", n_procs_key - 1, k_table[k_id].procs[n_procs_key - 1]);
+			
 			k_table[k_id].procs[n_procs_key - 1] = NULL_PROC_ID;
 			(k_table[k_id].num_procs_list)--;
-			k_table[k_id].founder = data_msg.proccess_id;
 			
-			return 1;
+			if (data_msg.found_flag)
+			    k_table[k_id].founder = data_msg.proccess_id;
+			
+			return 0;
 		}
-	} 
-		
-	return 1;
+	}
+	return 0;
 }
 
 /***************************************
@@ -1662,130 +1667,3 @@ int update_metadata(msg_data_t data_msg,
     
     return SUCCESS;
 }
-
-int process_raw_data_and_print(key_table_t k_table, 
-                               int num_keys, 
-                               proc_table_t p_table, 
-                               int num_procs)
-{
-    char **found_keys, **keys_per_proc;
-    int *n_calls_rand_crypt = NULL;
-    int nattempts = 0;
-    double secs_per_key = 0.0;
-    double runtime = 0.0;
-    int i, j;
-    
-    if (NULL == (n_calls_rand_crypt = malloc(num_procs * sizeof(int)))){ 
-		fprintf(stderr, "%s\n", "process_raw_data_and_print: ERROR in malloc(n_calls_rand_crypt )");
-		return -1;
-	}
-    
-    // Calculate total calls per process
-    for (i = 0; i < num_procs - 1; ++i) {
-        n_calls_rand_crypt[i] = p_table[i].stats.n_rand_crypt_calls;
-        nattempts += n_calls_rand_crypt[i];
-        for (j = 0; j < num_keys; j++) {
-           secs_per_key += p_table[i].stats.key_proccesing_times[j]; // To calculate mean time
-        }
-    }
-    
-    // Calculate mean time & runtime
-    secs_per_key /= CLOCKS_PER_SEC;
-    runtime = secs_per_key;
-    secs_per_key /= num_keys;
-
-    found_keys = key_table_to_str(k_table, num_keys);
-    keys_per_proc = proc_table_to_str(p_table, num_procs);
-
-    display_stats(  found_keys, num_keys,
-                    keys_per_proc, num_procs,
-                    n_calls_rand_crypt[0],
-                    nattempts,
-                    secs_per_key,
-                    runtime);
-             
-    free(found_keys);
-    free(keys_per_proc);
-
-    return 0;
-}
-
-void* key_table_to_str(key_table_t k_table, int num_keys)
-{
-    int i;
-    char* buf;
-    char random_buffer[WIDEST_CELL_WIDTH_PROC_TABLE];
-    
-    if (NULL == (buf = malloc(N_COLS_PROC_TABLE *num_keys*WIDEST_CELL_WIDTH_PROC_TABLE * sizeof(char)))){ 
-		fprintf(stderr, "%s\n", "key_table_to_str: ERROR in malloc(n_calls_rand_crypt )");
-		return NULL;
-	}
-	
-	for (i = 0; i < num_keys; ++i) {
-	    // Cipher
-	    strcpy(buf + i*WIDEST_CELL_WIDTH_PROC_TABLE*N_COLS_PROC_TABLE + 0*WIDEST_CELL_WIDTH_PROC_TABLE, k_table[i].key.cypher);
-	    // Number
-	    snprintf(random_buffer, sizeof(random_buffer), "%lu", k_table[i].key.key_number);
-	    strcpy(buf + i*WIDEST_CELL_WIDTH_PROC_TABLE*N_COLS_PROC_TABLE + 1*WIDEST_CELL_WIDTH_PROC_TABLE, random_buffer);
-	    // Founder process
-	    snprintf(random_buffer, sizeof(random_buffer), "%d", k_table[i].founder);
-	    strcpy(buf + i*WIDEST_CELL_WIDTH_PROC_TABLE*N_COLS_PROC_TABLE + 2*WIDEST_CELL_WIDTH_PROC_TABLE, random_buffer);
-	}
-	
-	return buf;    
-}
-
-void* proc_table_to_str(proc_table_t p_table, int num_procs)
-{
-    int i;
-    char* buf;
-    char random_buffer[WIDEST_CELL_WIDTH_PROC_TABLE];
-    
-    if (NULL == (buf = malloc(N_COLS_PROC_TABLE *num_procs*WIDEST_CELL_WIDTH_PROC_TABLE * sizeof(char)))){ 
-		fprintf(stderr, "%s\n", "proc_table_to_str: ERROR in malloc(n_calls_rand_crypt )");
-		return NULL;
-	}
-	
-	for (i = 0; i < num_procs; ++i) {
-	    // Process id
-	    snprintf(random_buffer, sizeof(random_buffer), "%d", p_table[i].proc_id);
-	    strcpy(buf + i*WIDEST_CELL_WIDTH_PROC_TABLE*N_COLS_PROC_TABLE + 0*WIDEST_CELL_WIDTH_PROC_TABLE, random_buffer);
-	    // Number of keys found
-	    snprintf(random_buffer, sizeof(random_buffer), "%d", p_table[i].stats.n_keys);
-	    strcpy(buf + i*WIDEST_CELL_WIDTH_PROC_TABLE*N_COLS_PROC_TABLE + 1*WIDEST_CELL_WIDTH_PROC_TABLE, random_buffer);
-	}
-	
-	return buf;  
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
