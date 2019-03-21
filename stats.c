@@ -72,6 +72,7 @@ int display_stats(char **found_keys, int nkeys,
     char sumup_title[] = "RESUMEN";
     char buf[100];
     int padding = 8;
+    char c;
     
     // Display tables
         // Display found keys
@@ -87,8 +88,25 @@ int display_stats(char **found_keys, int nkeys,
     // DISPLAY TABLES
     snprintf(buf, sizeof(buf), "Numero de claves encontradas: %d", nkeys);
 
-    print_table(titles_keys, (char **)found_keys, nkeys, 3, buf); 
-    print_table(titles_keys_per_proc, (char **)keys_per_proc, nprocs, 2, NULL);
+    if (nkeys >= 100) {
+        printf("%s", "¿Desea mostrar la lista de claves? [S/n]: ");
+        c = getchar();
+        putchar('\n');
+        if ('s' == c || 'S' == c || '\n' == c)
+            print_table(titles_keys, (char **)found_keys, nkeys, 3, buf);
+    } else {
+        print_table(titles_keys, (char **)found_keys, nkeys, 3, buf);
+    }
+    
+    if (nkeys >= 100) {
+        printf("%s", "¿Desea mostrar la lista de procesos? [S/n]: ");
+        c = getchar();
+        putchar('\n');
+        if ('s' == c || 'S' == c || '\n' == c)
+            print_table(titles_keys_per_proc, (char **)keys_per_proc, nprocs, 2, NULL);
+    } else {
+        print_table(titles_keys_per_proc, (char **)keys_per_proc, nprocs, 2, NULL);
+    }
     
     // DISPLAY NON-TABLES
     system("clear");
@@ -126,7 +144,7 @@ int display_stats(char **found_keys, int nkeys,
     printf ("%-*c- %-*s %c\n", padding + 1, border_char, TERM_WIDTH - padding - 5, buf, border_char);
     
     printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
-    snprintf(buf, sizeof(buf), "Numero medio de segundos por clave: %.4lf s", secs_per_key);
+    snprintf(buf, sizeof(buf), "Numero medio de segundos por clave: %.6lf s", secs_per_key);
     printf ("%-*c- %-*s %c\n", padding + 1, border_char, TERM_WIDTH - padding - 5, buf, border_char);
     
     printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
@@ -136,7 +154,7 @@ int display_stats(char **found_keys, int nkeys,
     putchar(border_char);
     putchar('\n');
     printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
-    snprintf(buf, sizeof(buf), "Tiempo total de ejecucion: %.4lf s", runtime);
+    snprintf(buf, sizeof(buf), "Tiempo total de ejecucion: %.6lf s", runtime);
     printf ("%c %-*s %c\n", border_char, TERM_WIDTH - 4, buf, border_char);
     printf("%c%*s%c\n", border_char, TERM_WIDTH-2, "", border_char);
     print_horizontal_bar(border_char, TERM_WIDTH, 1);
