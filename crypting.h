@@ -10,37 +10,42 @@
 #include <ctype.h>
 #include "mpi.h"
 
-// Standard terminal VT100 is 80 x 25
-#define TERM_WIDTH      79
-#define TERM_HEIGHT     24
-#define ITEMS_PER_PAGE  22
-#define N_PROCS         5
-
-#define N_COLS_KEY_TABLE    3
-#define N_COLS_PROC_TABLE    2
+// Standard terminal VT100 is 80 x 25 for Statistics
+#define TERM_WIDTH      			  79
+#define TERM_HEIGHT     			  24
+#define ITEMS_PER_PAGE  			  22
+#define N_PROCS         			  5
+#define N_COLS_KEY_TABLE    		  3
+#define N_COLS_PROC_TABLE    		  2
 #define WIDEST_CELL_WIDTH_KEY_TABLE   14
 #define WIDEST_CELL_WIDTH_PROC_TABLE  5
 
-#define MIN                           0		        /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
-#define MAX                           10000		    /*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
+// Limits of key searching
+#define MIN                           0		            
+#define MAX                           100000000		    
 
+// Number of elements for every message´s construction
 #define N_DECRYPT_MESSAGE_ELEMENTS          4
 #define N_KEY_ELEMENTS				        4
 #define N_DATA_MESSAGE_ELEMENTS       	    6
 #define N_REQUEST_DATA_MESSAGE_ELEMENTS     1
 #define N_FINISH_EXECUTION_MESSAGE_ELEMENTS 1
 
+// Identifications
 #define IO_PROCESS_ID                     0
 #define NULL_PROC_ID                     -1
 
-#define KEY_LENGTH                    	  4			/*<<<<<<<<<<<<<<<<<<<<<< Claves de 8 */
-#define CRYPT_LENGTH					  14        /* OMG you fucked here: it's 13 + 1 */
+// Lengths
+#define KEY_LENGTH                    	  8			
+#define CRYPT_LENGTH					  14        /* It's 13 + 1 (Including '\0') */
 
+// Message Tags
 #define DECRYPT_MESSAGE_TAG     		  1
 #define DATA_MESSAGE_TAG                  2
 #define REQUEST_DATA_MESSAGE_TAG 		  3
 #define FINISH_EXECUTION_MESSAGE_TAG 	  4
 
+// Debug printing macro
 #define return_value_print(x){\
             switch(x) {\
                 case ERROR_1: printf("%s\n", "Error 1"); break;\
@@ -72,7 +77,7 @@
 #define DEFAULT_NUM_KEYS 100
 
 
-/* ==================== MESSAGE ==================== */
+/* ================================== MESSAGE ================================== */
 
 typedef struct {
 	int key_id;								/* Id of the key */
@@ -87,7 +92,7 @@ typedef struct {
 	int proccess_id;						/* Id of the proccess that has found it */
 	unsigned long num_tries;				/* Number of tries the proccess has needeed to found the key */
 	double time;							/* Number of seconds the proccess has needeed to found the key */
-	int found_flag;
+	int found_flag;							/* Id of the process who found the key */
 } msg_data_t;
 
 typedef struct {
@@ -100,7 +105,7 @@ typedef struct {
 typedef int msg_request_data_t;
 typedef int msg_finish_execution_t;
 
-/* ==================== TABLES ==================== */
+/* ================================== TABLES ================================== */
 
 typedef struct {
 	int n_keys; 							/* Number of keys the proccess has found */
@@ -119,7 +124,7 @@ struct key_table_row {
 	key_data_t key;							/* Key object */
 	int *procs;								/* List of proccesses working on the key */
 	int num_procs_list;						/* Number of proccesses working on the key */
-	int founder;						/* Indicates if the key has already been found or not */
+	int founder;						    /* Indicates if the key has already been found or not */
 };
 
 
@@ -136,6 +141,7 @@ int register_decrypt_msg(msg_decrypt_t* data, MPI_Datatype* MPI_Type);
 int register_data_msg(msg_data_t* data, MPI_Datatype* MPI_Type);
 int assign_key_to_proccess(int proc_id, key_table_t k_table, proc_table_t p_table, int num_keys, int num_procs);
 int are_there_keys_not_decrypted(key_table_t k_table, int num_keys);
+int search_free_keys(key_table_t k_table, int num_keys, int *key);
 int search_free_procs(proc_table_t p_table, int num_proc, int* proccess_id);
 int search_keys_with_min_num_of_procs(key_table_t k_table, int num_keys, int* num_procs, int* procs_calc, key_data_t *key);
 int distribute_work(int num_procs, unsigned long *starting_values);

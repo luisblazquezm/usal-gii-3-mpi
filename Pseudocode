@@ -1,0 +1,101 @@
+
+/*================================================================== 
+============================ IO PROCESS ============================
+====================================================================*/
+
+    
+    PROCEDURE Proceso_central {
+    
+        ...
+        
+        WHILE (Claves sin procesos asociados) {
+            
+            Recibir_flag <- 0
+            IF (Hay procesos libres) {
+                p ← Seleccionar_proceso_libre()
+                Asignar_clave(p)
+                IF (No quedan claves sin procesos asociados)
+                    BREAK; // NO quedan claves libres
+                IF (Hay mensaje)
+                    Recibir_flag <- 1
+            } ELSE {
+                Recibir_flag <- 1
+            }
+            
+            IF (Recibir_flag){
+                Mensaje ← Recibir_mensaje_bloqueante()
+                Guardar_estadisticas(Mensaje)
+                Asignar _clave(Mensaje.proceso)
+            }
+        }
+        
+        WHILE (Queden claves) { // Este bucle WHILE creo que es muy optimizable en el reparto de
+                                // tareas
+
+            IF (Hay mensaje) { // Es decir, si hay algun proceso libre
+            
+                Mensaje <- Recibir_mensaje_no_bloqueante()
+                Datos ← Guardar_datos(Mensaje)
+                
+                FOR p IN procesos_calculando_clave_encontrada {
+                    Enviar_mensaje_solicitud_datos(q)
+                }
+                
+                FOR n IN numero_de_procesos_calculando_clave {
+                    Datos ← Recibir_respuesta_bloqueante()
+                    Procesar(Datos)
+                }
+                
+                IF (Quedan claves) {
+                    FOR p IN procesos_calculando_clave_encontrada
+                        Asignar _clave(p)
+                } ELSE
+                    BREAK; // NO quedan claves
+                }
+                
+            } ELSE {
+                Mensaje ← Recibir_mensaje_bloqueante() (Probe)
+            }
+        }
+
+        FOR p IN procesos_calculadores_en_el_sistema
+            Enviar_mensaje_finalizar_ejecucion()
+                
+        // Cálculos finalizados. Falta mostrar estadísticas, etc.
+        }
+    
+
+/*================================================================== 
+============================ CALCULATOR ============================
+====================================================================*/
+
+	
+	DO {
+        Clave, etc. ← Recibir_parametros_bloqueante()
+        DO {
+        
+            Intentar_desencriptar(Clave)
+            IF (Clave_desencriptada) {
+                Notificar_clave_encontrada_bloqueante()
+                BREAK; // Clave NO disponible
+            }
+            
+            Mensaje ← Recibir_mensaje_no_bloqueante()
+            
+            IF (Hay mensaje) {
+                SWITCH (Mensaje) {
+                    CASE Mensaje_desencriptar {
+                        Clave, etc. ← Get_parametros(Mensaje)
+                    }
+                    CASE Mensaje_solicitud_datos {
+                        Enviar_datos()
+                        BREAK; // Clave NO disponible
+                    }
+                    CASE Mensaje_finalizar_ejecución {
+                        BREAK; // NO en ejecución
+                    }
+                }
+            }
+        } WHILE (Clave disponible)
+    } WHILE (En ejecución)
+	

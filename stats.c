@@ -358,9 +358,9 @@ int process_raw_data_and_print(key_table_t k_table,
     int i, j;
     
     if (NULL == (n_calls_rand_crypt = malloc(num_procs * sizeof(unsigned long)))){ 
-		fprintf(stderr, "%s\n", "process_raw_data_and_print: ERROR in malloc(n_calls_rand_crypt )");
-		return -1;
-	}
+  		fprintf(stderr, "%s\n", "process_raw_data_and_print: ERROR in malloc(n_calls_rand_crypt )");
+  		return -1;
+	 }
     
     // Calculate total calls per process
     for (i = 0; i < num_procs; ++i) {
